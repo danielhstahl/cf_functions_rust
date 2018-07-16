@@ -154,9 +154,48 @@ pub fn gamma_cf(
     (1.0-u*b).powf(-a)
 }
 
+pub fn merton_time_change_log_cf(
+    u:&Complex<f64>,
+    t:f64,
+    lambda:f64,
+    mu_l:f64,
+    sig_l:f64,
+    sigma:f64,
+    v0:f64,
+    speed:f64,
+    ada_v:f64,
+    rho:f64    
+)->Complex<f64>{
+    let cf_rn=-merton_log_risk_neutral_cf(u, lambda, mu_l, sig_l, 0.0, sigma);
+    let ln_m=speed-ada_v*rho*u*sigma;
+    cir_log_mgf_cmp(
+        &cf_rn, 
+        speed,
+        &ln_m,
+        ada_v,
+        t, 
+        v0
+    )
+}
 
-/**return gaussLogCF(u, r-futilities::const_power(sigma, 2)*.5-mertonLogCF(1.0, lambda, muL, sigL), sigma)+mertonLogCF(u, lambda, muL, sigL);
-} */
+pub fn merton_time_change_cf(
+    t:f64,
+    rate:f64,
+    lambda:f64,
+    mu_l:f64,
+    sig_l:f64,
+    sigma:f64,
+    v0:f64,
+    speed:f64,
+    ada_v:f64,
+    rho:f64  
+)->impl Fn(&Complex<f64>)->Complex<f64>
+{
+    move |u|(rate*t*u+merton_time_change_log_cf(
+        u, t, lambda, mu_l, sig_l, 
+        sigma, v0, speed, ada_v, rho)
+    ).exp()
+}
 
 
 #[cfg(test)]
