@@ -1,29 +1,23 @@
 language: rust
-
 sudo: required
-
 rust:
-  - stable
-  - beta
-  - nightly
-
+- stable
+- beta
+- nightly
 matrix:
   allow_failures:
-    - rust: nightly
-env:
-  - secure: smQ1nBQ8pM12u6LWc+elM5bSyj4Hgd61h3HcStqtLF88KZBbGlqgZCxewfrWQg7eAk1SPTtiaqc6c6XpZEEWMTYqfa2tkBChnlnatJTwWCGaPjrpBxRyvDhQp/xzTbWfbCNMYtSrA6DnTu2TssBh7HGTt9nffFRRqlX4aBbDePWWxK/1V99fHNYN6kz1g2N/GVxawQ0naUDyzG3bIvQqi1S+ERHNS3gkJo4g7zaeJOhPOQeCfztrqWKC9Bmh8uzOQjumlPj5t0WIrFYYkQpHNZ+uy/uwuZbSopAehIjShrhT9zoFCJQTW4dSKVbJQleKc6QKhw03FNzUHQOLH5ztULttKrcXmVm0e/CetMruhkLwMaVZVoWu/UR2t+Om4LfGWMFnNtf98LkUTkFewzQ9EsU7mqEK9AoNSWhMtAV8BJtFOEdczkO67FDeAFJWf/fpPBjfFjtC49L0wNIH8+9JyEv1Np7FCMV/epO4PXu5na3rUkMYZQAc4mmwptNiHupnsyW4bN5sEwb/Z/Kgy7+sRU++/dISH3v8bs6sZp2z5hJ4tgu1YFmYJTiYy//KUTfSPo3HTx6+/qKE/c/AQDsRZqcIYNP2iSOkVpmVU1VpgLMG5XuC/crMlRacw7PPautXaQf9gmcOkEhgL5Jmku/fiCKM8MiNBKkpOWTtq4P8Cbc=
+  - rust: nightly
 addons:
   apt:
     packages:
-      - libcurl4-openssl-dev
-      - libelf-dev
-      - libdw-dev
-      - cmake
-      - gcc
-      - binutils-dev
-      - libiberty-dev
-
-after_success: |
+    - libcurl4-openssl-dev
+    - libelf-dev
+    - libdw-dev
+    - cmake
+    - gcc
+    - binutils-dev
+    - libiberty-dev
+after_success: |-
   wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz &&
   tar xzf master.tar.gz &&
   cd kcov-master &&
@@ -34,8 +28,11 @@ after_success: |
   make install DESTDIR=../../kcov-build &&
   cd ../.. &&
   rm -rf kcov-master &&
-  for file in target/debug/fang_oost-*[^\.d]; do mkdir -p "target/cov/$(basename $file)"; ./kcov-build/usr/local/bin/kcov --exclude-pattern=/.cargo,/usr/lib --verify "target/cov/$(basename $file)" "$file"; done &&
+  for file in target/debug/cf_functions-*[^\.d]; do mkdir -p "target/cov/$(basename $file)"; ./kcov-build/usr/local/bin/kcov --exclude-pattern=/.cargo,/usr/lib --verify "target/cov/$(basename $file)" "$file"; done &&
   bash <(curl -s https://codecov.io/bash) &&
   echo "Uploaded code coverage"
   cargo doc
   cargo publish --token "$CARGO_API" --allow-dirty
+env:
+  matrix:
+    secure: u9VAMeXLg0YcSIGCY5j8sB82nmyv28VZH0kZuRLqFZf1B7IbELoLDdhbS3U4rxP1YBsnkzAM7h2rgIt/Rn5/TE0199CHErswnwHQ3l2Ql7/Nx5+zSRnuYEngLuxbc7SGPqbXajSMQdkQGlnYDW25vLgR9amHQTZ2EhEAIQMr/7GSyKrzhiVQZ+AQNqxJrBXstMSay3JsA1QiAPKbhdgSC6FSbYfJ/WRVRFyV1YxpVSIQ8hMoEO6Ih5TspDAbZX2nOq5spUZGA9gr3DLT8ixfZjYlXbL07d6IslO1+cfUGd+rrX2RXmepbC4kPkyBnSvIfntlJxvNVGZxIrxXwMcKd4R8HkvymL4zHZYeZKzooL8HHbW7wmM9f5Al2R+7gRXeCyo2ZCI61j+THdQkNuW5aCrBWfOVxngOJoSRoO+VwvFuU2nATsVZpZBex7mh3/6liFkKVPKwftYcSSefyzE8fCyhLRoF9hr3L8lHmTQ5sgMkzRjvdDciPN7nt+yXsyulzZpiuwY4vrTj/OYN3PGM9DZyNHi9EaXzLUJx9CpTZYwTKCdoSg4yYD2gDRsiFwqDOm4IHGqblyetyk8GZp551Cv++CxBPQnsiehIbKQEp5rkl7+asAVaNv0IRfaSyUIeQkxPNDza3MsVxv2IGM1NfnVvcqlUDGwYejEHH7E2r74=
