@@ -90,6 +90,23 @@ pub fn cgmy_log_cf(
         c*(-y).gamma()*(m-u).powf(y)+(g+u).powf(y)-m.powf(y)-g.powf(y)
     }
 }
+pub fn cgmy_log_cf_real(
+    u:f64,
+    c:f64,
+    g:f64,
+    m:f64,
+    y:f64
+)->Complex<f64>{
+    if is_same(y, 1.0) {
+        Complex::new(0.0, 0.0)
+    }
+    else if is_same(y, 0.0) {
+        c*(1.0-u/g).ln()*(1.0+u/m)
+    }
+    else {
+        c*(-y).gamma()*(m-u).powf(y)+(g+u).powf(y)-m.powf(y)-g.powf(y)
+    }
+}
 //see http://finance.martinsewell.com/stylized-facts/distribution/CarrGemanMadanYor2002.pdf pg 12 and 13
 pub fn cgmy_log_risk_neutral_cf(
     u:&Complex<f64>,
@@ -100,7 +117,7 @@ pub fn cgmy_log_risk_neutral_cf(
     r:f64,
     sigma:f64
 )->Complex<f64>{
-    let cmp_mu=r-sigma.powi(2)*0.5-cgmy_log_cf(&Complex::new(1.0, 0.0), c, g, m, y);
+    let cmp_mu=r-sigma.powi(2)*0.5-cgmy_log_cf_real(1.0, c, g, m, y);
     gauss_log_cf_cmp(
         u, 
         &cmp_mu,
