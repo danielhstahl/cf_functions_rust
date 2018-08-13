@@ -100,7 +100,7 @@ pub fn cgmy_log_risk_neutral_cf(
     r:f64,
     sigma:f64
 )->Complex<f64>{
-    let cmp_mu=r-sigma.powi(2)*0.5-cgmy_log_cf(Complex::new(1.0, 0.0), c, g, m, y);
+    let cmp_mu=r-sigma.powi(2)*0.5-cgmy_log_cf(&Complex::new(1.0, 0.0), c, g, m, y);
     gauss_log_cf_cmp(
         u, 
         &cmp_mu,
