@@ -1,6 +1,6 @@
 [package]
 name = "cf_functions"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Daniel Stahl <danstahl1138@gmail.com>"]
 homepage = "https://github.com/phillyfan1138/cf_functions_rust"
 repository = "https://github.com/phillyfan1138/cf_functions_rust"
@@ -10,6 +10,7 @@ description = "A library which has risk and distribution utilities."
 
 [dependencies]
 num-complex = "0.2"
+special = "0.7"
 
 [badges]
 travis-ci = { repository = "phillyfan1138/cf_functions_rust" }
