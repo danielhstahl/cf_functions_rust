@@ -96,9 +96,9 @@ pub fn cgmy_log_cf_real(
     g:f64,
     m:f64,
     y:f64
-)->Complex<f64>{
+)->f64{
     if is_same(y, 1.0) {
-        Complex::new(0.0, 0.0)
+        0.0
     }
     else if is_same(y, 0.0) {
         c*(1.0-u/g).ln()*(1.0+u/m)
