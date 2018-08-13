@@ -1,4 +1,5 @@
 extern crate num_complex;
+extern crate special;
 
 use num_complex::Complex;
 use special::Gamma;
@@ -79,10 +80,10 @@ pub fn cgmy_log_cf(
     m:f64,
     y:f64
 )->Complex<f64>{
-    if is_same_cmp(y, 1.0) {
+    if is_same(y, 1.0) {
         Complex::new(0.0, 0.0)
     }
-    else if is_same_cmp(y, 0.0) {
+    else if is_same(y, 0.0) {
         c*(1.0-u/g).ln()*(1.0+u/m)
     }
     else {
@@ -99,9 +100,10 @@ pub fn cgmy_log_risk_neutral_cf(
     r:f64,
     sigma:f64
 )->Complex<f64>{
+    let cmp_mu=r-sigma.powi(2)*0.5-cgmy_log_cf(Complex::new(1.0, 0.0), c, g, m, y);
     gauss_log_cf_cmp(
         u, 
-        r-sigma.powi(2)*0.5-cgmy_log_cf(complex::new(1.0, 0.0), c, g, m, y),
+        &cmp_mu,
         sigma
     )+cgmy_log_cf(u, c, g, m, y)
 }
