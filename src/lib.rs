@@ -146,7 +146,7 @@ fn is_same_cmp(
 /// 
 /// # Remarks
 /// 
-/// //see [cgmy](http://finance.martinsewell.com/stylized-facts/distribution/CarrGemanMadanYor2002.pdf) pg 10
+/// See [cgmy](http://finance.martinsewell.com/stylized-facts/distribution/CarrGemanMadanYor2002.pdf) pg 10
 /// 
 /// # Examples
 /// 
@@ -187,7 +187,7 @@ pub fn cgmy_log_cf(
 /// 
 /// # Remarks
 /// 
-/// //see [cgmy](http://finance.martinsewell.com/stylized-facts/distribution/CarrGemanMadanYor2002.pdf) pg 12 and 13
+/// See [cgmy](http://finance.martinsewell.com/stylized-facts/distribution/CarrGemanMadanYor2002.pdf) pg 12 and 13
 /// 
 /// # Examples
 /// 
