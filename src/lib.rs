@@ -2,8 +2,10 @@
 //! option pricing.  All of the characteristic functions
 //! are with respect to "ui" instead of "u".  
 extern crate num_complex;
+extern crate special;
 
 use num_complex::Complex;
+use special::Gamma;
 
 use std::f64::consts::PI;
 
@@ -126,6 +128,7 @@ pub fn merton_log_risk_neutral_cf(
         sigma
     )+merton_log_cf(u, lambda, mu_l, sig_l)
 }
+
 fn is_same(
     num:f64,
     to_compare:f64
@@ -138,6 +141,91 @@ fn is_same_cmp(
 )->bool{
     (num.re-to_compare).abs()<=std::f64::EPSILON
 }
+
+/// Returns log of CGMY characteristic function
+/// 
+/// # Remarks
+/// 
+/// //see [cgmy](http://finance.martinsewell.com/stylized-facts/distribution/CarrGemanMadanYor2002.pdf) pg 10
+/// 
+/// # Examples
+/// 
+/// ```
+/// extern crate num_complex;
+/// use num_complex::Complex;
+/// extern crate cf_functions;
+/// # fn main() {
+/// let u = Complex::new(1.0, 1.0);
+/// let c = 0.5; 
+/// let g = 4.0;
+/// let m = 3.0;
+/// let y = 0.6;
+/// let log_cf = cf_functions::cgmy_log_cf(
+///     &u, c, g, m, y
+/// );
+/// # }
+/// ```
+pub fn cgmy_log_cf(
+    u:&Complex<f64>,
+    c:f64,
+    g:f64,
+    m:f64,
+    y:f64
+)->Complex<f64>{
+    if is_same(y, 1.0) {
+        Complex::new(0.0, 0.0)
+    }
+    else if is_same(y, 0.0) {
+        c*(1.0-u/g).ln()*(1.0+u/m)
+    }
+    else {
+        c*(-y).gamma()*((m-u).powf(y)+(g+u).powf(y)-m.powf(y)-g.powf(y))
+    }
+}
+
+/// Returns log of CGMY-diffusion characteristic function adjusted to be risk neutral
+/// 
+/// # Remarks
+/// 
+/// //see [cgmy](http://finance.martinsewell.com/stylized-facts/distribution/CarrGemanMadanYor2002.pdf) pg 12 and 13
+/// 
+/// # Examples
+/// 
+/// ```
+/// extern crate num_complex;
+/// use num_complex::Complex;
+/// extern crate cf_functions;
+/// # fn main() {
+/// let u = Complex::new(1.0, 1.0);
+/// let c = 0.5; 
+/// let g = 4.0;
+/// let m = 3.0;
+/// let y = 0.6;
+/// let rate = 0.05; //risk free rate
+/// let sigma = 0.3; //volatility of diffusion
+/// let log_cf = cf_functions::cgmy_log_risk_neutral_cf(
+///     &u, c, g, m, y, rate, sigma
+/// );
+/// # }
+/// ```
+pub fn cgmy_log_risk_neutral_cf(
+    u:&Complex<f64>,
+    c:f64,
+    g:f64,
+    m:f64,
+    y:f64,
+    rate:f64,
+    sigma:f64
+)->Complex<f64>{
+    let cmp_mu=rate-sigma.powi(2)*0.5-cgmy_log_cf(&Complex::new(1.0, 0.0), c, g, m, y);
+    gauss_log_cf_cmp(
+        u, 
+        &cmp_mu,
+        sigma
+    )+cgmy_log_cf(u, c, g, m, y)
+}
+
+
 /// Returns log of moment generating function for Cox Ingersoll Ross process evaluated at complex argument.
 /// 
 /// # Remarks
@@ -470,11 +558,11 @@ mod tests {
         let t=0.25;
         let a_num=2.0*h*((a+h)*t*0.5).exp();
         let a_den=2.0*h+(a+h)*((t*h).exp()-1.0);
-        let a_t_T=(a_num/a_den).powf(2.0*a*b/(sigma*sigma));
+        let a_t_tm=(a_num/a_den).powf(2.0*a*b/(sigma*sigma));
         let b_num=2.0*((t*h).exp()-1.0);
         let b_den=a_den;
-        let b_t_T=b_num/b_den;
-        let bond_price=a_t_T*((-r0*b_t_T).exp());
+        let b_t_tm=b_num/b_den;
+        let bond_price=a_t_tm*((-r0*b_t_tm).exp());
         assert_eq!(bond_price, cir_mgf(&Complex::new(1.0, 0.0), a*b, a, sigma, t, r0).re);
     }
     #[test]
