@@ -1,9 +1,28 @@
+//! Provides several common characteristic functions for
+//! option pricing.  All of the characteristic functions
+//! are with respect to "ui" instead of "u".  
 extern crate num_complex;
 
 use num_complex::Complex;
 
 use std::f64::consts::PI;
-/**All CFs are with respect to the complex u (ie, ui) */
+
+/// Returns log of Gaussian characteristic function
+/// # Examples
+/// 
+/// ```
+/// extern crate num_complex;
+/// use num_complex::Complex;
+/// extern crate cf_functions;
+/// # fn main() {
+/// let u = Complex::new(1.0, 1.0);
+/// let mu = 0.5;
+/// let sigma = 0.3;
+/// let log_cf = cf_functions::gauss_log_cf(
+///     &u, mu, sigma
+/// );
+/// # }
+/// ```
 pub fn gauss_log_cf(
     u:&Complex<f64>,
     mu:f64,
@@ -12,7 +31,7 @@ pub fn gauss_log_cf(
 {
     u*mu+u*u*0.5*sigma.powi(2)
 }
-//I hate rust's inability to do generics properly
+
 fn gauss_log_cf_cmp(
     u:&Complex<f64>,
     mu:&Complex<f64>,
@@ -21,7 +40,22 @@ fn gauss_log_cf_cmp(
 {
     u*mu+u*u*0.5*sigma.powi(2)
 }
-
+/// Returns Gaussian characteristic function 
+/// # Examples
+/// 
+/// ```
+/// extern crate num_complex;
+/// use num_complex::Complex;
+/// extern crate cf_functions;
+/// # fn main() {
+/// let u = Complex::new(1.0, 1.0);
+/// let mu = 0.5;
+/// let sigma = 0.3;
+/// let cf = cf_functions::gauss_cf(
+///     &u, mu, sigma
+/// );
+/// # }
+/// ```
 pub fn gauss_cf(
     u:&Complex<f64>,
     mu:f64,
@@ -31,6 +65,23 @@ pub fn gauss_cf(
     gauss_log_cf(u, mu, sigma).exp()
 }
 
+/// Returns log of Poisson jump characteristic function with Gaussian jumps
+/// # Examples
+/// 
+/// ```
+/// extern crate num_complex;
+/// use num_complex::Complex;
+/// extern crate cf_functions;
+/// # fn main() {
+/// let u = Complex::new(1.0, 1.0);
+/// let lambda = 0.5; //jump frequency
+/// let mu_l = 0.5; //mean of jump
+/// let sigma_l = 0.3; //volatility of jump
+/// let log_cf = cf_functions::merton_log_cf(
+///     &u, lambda, mu_l, sigma_l
+/// );
+/// # }
+/// ```
 pub fn merton_log_cf(
     u:&Complex<f64>,
     lambda:f64,
@@ -41,6 +92,25 @@ pub fn merton_log_cf(
     lambda*(gauss_cf(u, mu_l, sig_l)-1.0)
 }
 
+/// Returns log of Merton jump diffusion characteristic function with Gaussian jumps, adjusted to be risk-neutral
+/// # Examples
+/// 
+/// ```
+/// extern crate num_complex;
+/// use num_complex::Complex;
+/// extern crate cf_functions;
+/// # fn main() {
+/// let u = Complex::new(1.0, 1.0);
+/// let lambda = 0.5; //jump frequency
+/// let mu_l = 0.5; //mean of jump
+/// let sigma_l = 0.3; //volatility of jump
+/// let sigma = 0.3; //volatility of diffusion
+/// let rate = 0.04; //risk free rate
+/// let log_cf = cf_functions::merton_log_risk_neutral_cf(
+///     &u, lambda, mu_l, sigma_l, rate, sigma
+/// );
+/// # }
+/// ```
 pub fn merton_log_risk_neutral_cf(
     u:&Complex<f64>,
     lambda:f64,
@@ -68,6 +138,30 @@ fn is_same_cmp(
 )->bool{
     (num.re-to_compare).abs()<=std::f64::EPSILON
 }
+/// Returns log of moment generating function for Cox Ingersoll Ross process evaluated at complex argument.
+/// 
+/// # Remarks
+/// Useful for time changed levy processes.  "psi" can be a characteristic function of a levy process 
+/// evaluated at a given "u".
+/// 
+/// # Examples
+/// 
+/// ```
+/// extern crate num_complex;
+/// use num_complex::Complex;
+/// extern crate cf_functions;
+/// # fn main() {
+/// let u = Complex::new(1.0, 1.0);
+/// let a = 0.3; //speed of mean reversion of CIR process
+/// let kappa = 0.2; //kappa/a is the long run mean of CIR process
+/// let sigma = 0.3; //volatility of CIR process
+/// let t = 0.5; //time period of CIR process
+/// let v0 = 0.7; //initial value of CIR process
+/// let log_mgf = cf_functions::cir_log_mgf(
+///     &u, a, kappa, sigma, t, v0
+/// );
+/// # }
+/// ```
 pub fn cir_log_mgf(
     psi:&Complex<f64>,
     a:f64,
@@ -90,7 +184,32 @@ pub fn cir_log_mgf(
     };
     -b_t*v0-c_t
 }
-//hate Rusts lack of good generics
+
+/// Returns log of moment generating function for Cox Ingersoll Ross process 
+/// evaluated at complex argument and with complex kappa.  
+/// 
+/// # Remarks
+/// Useful for time changed levy processes.  "psi" can be a characteristic function of a levy 
+/// process evaluated at a given "u" with induced correlation used by "kappa".
+/// 
+/// # Examples
+/// 
+/// ```
+/// extern crate num_complex;
+/// use num_complex::Complex;
+/// extern crate cf_functions;
+/// # fn main() {
+/// let u = Complex::new(1.0, 1.0);
+/// let a = 0.3; //speed of mean reversion of CIR process
+/// let kappa = Complex::new(0.2, -0.3); //for leverage neutral measure
+/// let sigma = 0.3; //volatility of CIR process
+/// let t = 0.5; //time period of CIR process
+/// let v0 = 0.7; //initial value of CIR process
+/// let log_mgf = cf_functions::cir_log_mgf_cmp(
+///     &u, a, &kappa, sigma, t, v0
+/// );
+/// # }
+/// ```
 pub fn cir_log_mgf_cmp(
     psi:&Complex<f64>,
     a:f64,
@@ -113,7 +232,30 @@ pub fn cir_log_mgf_cmp(
     };
     -b_t*v0-c_t
 }
-
+/// Returns moment generating function for Cox Ingersoll Ross process evaluated at complex argument.
+/// 
+/// # Remarks
+/// Useful for time changed levy processes.  "psi" can be a characteristic function of a levy process 
+/// evaluated at a given "u".
+/// 
+/// # Examples
+/// 
+/// ```
+/// extern crate num_complex;
+/// use num_complex::Complex;
+/// extern crate cf_functions;
+/// # fn main() {
+/// let u = Complex::new(1.0, 1.0);
+/// let a = 0.3; //speed of mean reversion of CIR process
+/// let kappa = 0.2; //kappa/a is the long run mean of CIR process
+/// let sigma = 0.3; //volatility of CIR process
+/// let t = 0.5; //time period of CIR process
+/// let v0 = 0.7; //initial value of CIR process
+/// let mgf = cf_functions::cir_mgf(
+///     &u, a, kappa, sigma, t, v0
+/// );
+/// # }
+/// ```
 pub fn cir_mgf(
     psi:&Complex<f64>,
     a:f64,
@@ -124,6 +266,31 @@ pub fn cir_mgf(
 )->Complex<f64>{
     cir_log_mgf(psi, a, kappa, sigma, t, v0).exp()
 }
+/// Returns moment generating function for Cox Ingersoll Ross process 
+/// evaluated at complex argument and with complex kappa.  
+/// 
+/// # Remarks
+/// Useful for time changed levy processes.  "psi" can be a characteristic function of a levy 
+/// process evaluated at a given "u" with induced correlation used by "kappa".
+/// 
+/// # Examples
+/// 
+/// ```
+/// extern crate num_complex;
+/// use num_complex::Complex;
+/// extern crate cf_functions;
+/// # fn main() {
+/// let u = Complex::new(1.0, 1.0);
+/// let a = 0.3; //speed of mean reversion of CIR process
+/// let kappa = Complex::new(0.2, -0.3); //for leverage neutral measure
+/// let sigma = 0.3; //volatility of CIR process
+/// let t = 0.5; //time period of CIR process
+/// let v0 = 0.7; //initial value of CIR process
+/// let mgf = cf_functions::cir_mgf_cmp(
+///     &u, a, &kappa, sigma, t, v0
+/// );
+/// # }
+/// ```
 pub fn cir_mgf_cmp(
     psi:&Complex<f64>,
     a:f64,
@@ -135,6 +302,24 @@ pub fn cir_mgf_cmp(
     cir_log_mgf_cmp(psi, a, kappa, sigma, t, v0).exp()
 }
 
+/// Returns characteristic function of a stable distribution.
+/// # Examples
+/// 
+/// ```
+/// extern crate num_complex;
+/// use num_complex::Complex;
+/// extern crate cf_functions;
+/// # fn main() {
+/// let u = Complex::new(1.0, 1.0);
+/// let alpha = 0.5; 
+/// let mu = 0.5; 
+/// let beta = 0.3; 
+/// let c = 0.3; 
+/// let cf = cf_functions::stable_cf(
+///     &u, alpha, mu, beta, c
+/// );
+/// # }
+/// ```
 pub fn stable_cf(
     u:&Complex<f64>,
     alpha:f64,
@@ -146,6 +331,22 @@ pub fn stable_cf(
     (u*mu-(u*Complex::new(0.0, -1.0)*c).powf(alpha)*Complex::new(1.0, -beta*phi)).exp()
 }
 
+/// Returns characteristic function of a gamma distribution.
+/// # Examples
+/// 
+/// ```
+/// extern crate num_complex;
+/// use num_complex::Complex;
+/// extern crate cf_functions;
+/// # fn main() {
+/// let u = Complex::new(1.0, 1.0);
+/// let a = 0.5;
+/// let b = 0.6;
+/// let cf = cf_functions::gamma_cf(
+///     &u, a, b
+/// );
+/// # }
+/// ```
 pub fn gamma_cf(
     u:&Complex<f64>,
     a:f64,
@@ -154,6 +355,34 @@ pub fn gamma_cf(
     (1.0-u*b).powf(-a)
 }
 
+/// Returns log of time changed Merton jump diffusion characteristic function with Gaussian jumps with correlation between the diffusion of the time changed process and the underlying.
+/// 
+/// # Remarks
+/// The time change is assumed to be a CIR process with long run mean of 1.0.
+/// 
+/// # Examples
+/// 
+/// ```
+/// extern crate num_complex;
+/// use num_complex::Complex;
+/// extern crate cf_functions;
+/// # fn main() {
+/// let u = Complex::new(1.0, 1.0);
+/// let lambda = 0.5; //jump frequency
+/// let mu_l = 0.5; //mean of jump
+/// let sigma_l = 0.3; //volatility of jump
+/// let sigma = 0.3; //volatility of underlying diffusion
+/// let t = 0.5; //time horizon
+/// let speed = 0.5; //speed of CIR process
+/// let v0 = 0.9; //initial value of CIR process 
+/// let eta_v = 0.3; //volatility of CIR process
+/// let rho = -0.5; //correlation between diffusions
+/// let log_cf = cf_functions::merton_time_change_log_cf(
+///     &u, t, lambda, mu_l, sigma_l, 
+///     sigma, v0, speed, eta_v, rho
+/// );
+/// # }
+/// ```
 pub fn merton_time_change_log_cf(
     u:&Complex<f64>,
     t:f64,
@@ -163,21 +392,51 @@ pub fn merton_time_change_log_cf(
     sigma:f64,
     v0:f64,
     speed:f64,
-    ada_v:f64,
+    eta_v:f64,
     rho:f64    
 )->Complex<f64>{
     let cf_rn=-merton_log_risk_neutral_cf(u, lambda, mu_l, sig_l, 0.0, sigma);
-    let ln_m=speed-ada_v*rho*u*sigma;
+    let ln_m=speed-eta_v*rho*u*sigma;
     cir_log_mgf_cmp(
         &cf_rn, 
         speed,
         &ln_m,
-        ada_v,
+        eta_v,
         t, 
         v0
     )
 }
 
+/// Returns cf function of a time changed Merton jump diffusion characteristic function with Gaussian jumps with correlation between the diffusion of the time changed process and the underlying, adjusted to be risk neutral.
+/// 
+/// # Remarks
+/// The time change is assumed to be a CIR process with long run mean of 1.0.
+/// 
+/// # Examples
+/// 
+/// ```
+/// extern crate num_complex;
+/// use num_complex::Complex;
+/// extern crate cf_functions;
+/// # fn main() {
+/// let u = Complex::new(1.0, 1.0);
+/// let lambda = 0.5; //jump frequency
+/// let mu_l = 0.5; //mean of jump
+/// let sigma_l = 0.3; //volatility of jump
+/// let sigma = 0.3; //volatility of underlying diffusion
+/// let t = 0.5; //time horizon
+/// let rate = 0.05;
+/// let speed = 0.5; //speed of CIR process
+/// let v0 = 0.9; //initial value of CIR process 
+/// let eta_v = 0.3; //volatility of CIR process
+/// let rho = -0.5; //correlation between diffusions
+/// let cf = cf_functions::merton_time_change_cf(
+///     t, rate, lambda, mu_l, sigma_l, 
+///     sigma, v0, speed, eta_v, rho
+/// );
+/// let value_of_cf=cf(&Complex::new(0.05, -0.5));
+/// # }
+/// ```
 pub fn merton_time_change_cf(
     t:f64,
     rate:f64,
