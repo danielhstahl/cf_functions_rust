@@ -443,6 +443,28 @@ pub fn gamma_cf(
     (1.0-u*b).powf(-a)
 }
 
+fn generic_leverage_diffusion(
+    u:&Complex<f64>,
+    get_cf:&Fn(&Complex<f64>)->Complex<f64>,
+    t:f64,
+    sigma:f64,
+    v0:f64,
+    speed:f64,
+    eta_v:f64,
+    rho:f64
+)->Complex<f64>{
+    let ln_m=speed-eta_v*rho*u*sigma;
+    let cf_fn_rn=-get_cf(u);
+    cir_log_mgf_cmp(
+        &cf_fn_rn, 
+        speed,
+        &ln_m,
+        eta_v,
+        t, 
+        v0
+    )
+}
+
 /// Returns log of time changed Merton jump diffusion characteristic function with Gaussian jumps with correlation between the diffusion of the time changed process and the underlying.
 /// 
 /// # Remarks
@@ -483,15 +505,100 @@ pub fn merton_time_change_log_cf(
     eta_v:f64,
     rho:f64    
 )->Complex<f64>{
-    let cf_rn=-merton_log_risk_neutral_cf(u, lambda, mu_l, sig_l, 0.0, sigma);
-    let ln_m=speed-eta_v*rho*u*sigma;
-    cir_log_mgf_cmp(
-        &cf_rn, 
-        speed,
-        &ln_m,
-        eta_v,
-        t, 
-        v0
+    generic_leverage_diffusion(
+        u, 
+        &|u|merton_log_risk_neutral_cf(u, lambda, mu_l, sig_l, 0.0, sigma),
+        t, sigma, v0, speed, eta_v, rho
+    )
+}
+
+/// Returns log of time changed CGMY characteristic function with correlation between the diffusion of the time changed process and the underlying.
+/// 
+/// # Remarks
+/// The time change is assumed to be a CIR process with long run mean of 1.0.
+/// 
+/// # Examples
+/// 
+/// ```
+/// extern crate num_complex;
+/// use num_complex::Complex;
+/// extern crate cf_functions;
+/// # fn main() {
+/// let u = Complex::new(1.0, 1.0);
+/// let c = 0.5; 
+/// let g = 4.0;
+/// let m = 3.0;
+/// let y = 0.6;
+/// let sigma = 0.3; //volatility of underlying diffusion
+/// let t = 0.5; //time horizon
+/// let speed = 0.5; //speed of CIR process
+/// let v0 = 0.9; //initial value of CIR process 
+/// let eta_v = 0.3; //volatility of CIR process
+/// let rho = -0.5; //correlation between diffusions
+/// let log_cf = cf_functions::cgmy_time_change_log_cf(
+///     &u, t, c, g, m, y,
+///     sigma, v0, speed, eta_v, rho
+/// );
+/// # }
+/// ```
+pub fn cgmy_time_change_log_cf(
+    u:&Complex<f64>,
+    t:f64,
+    c:f64,
+    g:f64,
+    m:f64,
+    y:f64,
+    sigma:f64,
+    v0:f64,
+    speed:f64,
+    eta_v:f64,
+    rho:f64    
+)->Complex<f64>{
+    generic_leverage_diffusion(
+        u, 
+        &|u|cgmy_log_risk_neutral_cf(u, c, g, m, y, 0.0, sigma),
+        t, sigma, v0, speed, eta_v, rho
+    )
+}
+
+/// Returns Heston model log CF.
+/// 
+/// # Remarks
+/// The time change is assumed to be a CIR process with long run mean of 1.0.
+/// 
+/// # Examples
+/// 
+/// ```
+/// extern crate num_complex;
+/// use num_complex::Complex;
+/// extern crate cf_functions;
+/// # fn main() {
+/// let u = Complex::new(1.0, 1.0);
+/// let sigma = 0.3; //volatility of underlying diffusion
+/// let t = 0.5; //time horizon
+/// let speed = 0.5; //speed of CIR process
+/// let v0 = 0.9; //initial value of CIR process 
+/// let eta_v = 0.3; //volatility of CIR process
+/// let rho = -0.5; //correlation between diffusions
+/// let log_cf = cf_functions::heston_log_cf(
+///     &u, t, 
+///     sigma, v0, speed, eta_v, rho
+/// );
+/// # }
+/// ```
+pub fn heston_log_cf(
+    u:&Complex<f64>,
+    t:f64,
+    sigma:f64,
+    v0:f64,
+    speed:f64,
+    eta_v:f64,
+    rho:f64    
+)->Complex<f64>{
+    generic_leverage_diffusion(
+        u, 
+        &|u|gauss_log_cf(u, -0.5*sigma.powi(2), sigma),
+        t, sigma, v0, speed, eta_v, rho
     )
 }
 
@@ -534,16 +641,107 @@ pub fn merton_time_change_cf(
     sigma:f64,
     v0:f64,
     speed:f64,
-    ada_v:f64,
+    eta_v:f64,
     rho:f64  
 )->impl Fn(&Complex<f64>)->Complex<f64>
 {
     move |u|(rate*t*u+merton_time_change_log_cf(
         u, t, lambda, mu_l, sig_l, 
-        sigma, v0, speed, ada_v, rho)
+        sigma, v0, speed, eta_v, rho)
     ).exp()
 }
 
+/// Returns log of time changed CGMY characteristic function with correlation between the diffusion of the time changed process and the underlying.
+/// 
+/// # Remarks
+/// The time change is assumed to be a CIR process with long run mean of 1.0.
+/// 
+/// # Examples
+/// 
+/// ```
+/// extern crate num_complex;
+/// use num_complex::Complex;
+/// extern crate cf_functions;
+/// # fn main() {
+/// let u = Complex::new(1.0, 1.0);
+/// let c = 0.5; 
+/// let g = 4.0;
+/// let m = 3.0;
+/// let y = 0.6;
+/// let sigma = 0.3; //volatility of underlying diffusion
+/// let t = 0.5; //time horizon
+/// let rate = 0.05;
+/// let speed = 0.5; //speed of CIR process
+/// let v0 = 0.9; //initial value of CIR process 
+/// let eta_v = 0.3; //volatility of CIR process
+/// let rho = -0.5; //correlation between diffusions
+/// let cf = cf_functions::cgmy_time_change_cf(
+///     t, rate, c, g, m, y,
+///     sigma, v0, speed, eta_v, rho
+/// );
+/// let value_of_cf=cf(&Complex::new(0.05, -0.5));
+/// # }
+/// ```
+pub fn cgmy_time_change_cf(
+    t:f64,
+    rate:f64,
+    c:f64,
+    g:f64,
+    m:f64,
+    y:f64,
+    sigma:f64,
+    v0:f64,
+    speed:f64,
+    eta_v:f64,
+    rho:f64    
+)->impl Fn(&Complex<f64>)->Complex<f64>{
+    move |u|(rate*t*u+cgmy_time_change_log_cf(
+        u, t, c, g, m, y, sigma, 
+        v0, speed, eta_v, rho
+    )).exp()
+}
+
+
+/// Returns Heston model log CF.
+/// 
+/// # Remarks
+/// The time change is assumed to be a CIR process with long run mean of 1.0.
+/// 
+/// # Examples
+/// 
+/// ```
+/// extern crate num_complex;
+/// use num_complex::Complex;
+/// extern crate cf_functions;
+/// # fn main() {
+/// let u = Complex::new(1.0, 1.0);
+/// let sigma = 0.3; //volatility of underlying diffusion
+/// let t = 0.5; //time horizon
+/// let rate = 0.05;
+/// let speed = 0.5; //speed of CIR process
+/// let v0 = 0.9; //initial value of CIR process 
+/// let eta_v = 0.3; //volatility of CIR process
+/// let rho = -0.5; //correlation between diffusions
+/// let cf = cf_functions::heston_cf(
+///     t, rate, 
+///     sigma, v0, speed, eta_v, rho
+/// );
+/// let value_of_cf=cf(&Complex::new(0.05, -0.5));
+/// # }
+/// ```
+pub fn heston_cf(
+    t:f64,
+    rate:f64,
+    sigma:f64,
+    v0:f64,
+    speed:f64,
+    eta_v:f64,
+    rho:f64    
+)->impl Fn(&Complex<f64>)->Complex<f64>{
+    move |u|(rate*t*u+
+        heston_log_cf(u, t, sigma, v0, speed, eta_v, rho)
+    ).exp()
+}
 
 #[cfg(test)]
 mod tests {
@@ -588,6 +786,24 @@ mod tests {
         let c_t=(k/(sig*sig))*(2.0*(1.0-(1.0-(-ada*t).exp())*(ada-k_star)/(2.0*ada)).ln()+(ada-k_star)*t);
         let cf_heston=(-b_t*v0-c_t).exp().re;
         let approx_heston_cf=cir_mgf_cmp(&neg_psi, k, &k_star, sig, t, v0).re;
+        assert_eq!(cf_heston, approx_heston_cf);
+    }
+    #[test]
+    fn cir_heston_2(){
+        let t=0.25;
+        let k=0.2;
+        let v0=0.98;
+        let sig=0.2;
+        let rho=-0.3;
+        let sig_tot=0.3;
+        let u=Complex::new(0.5, 0.5);
+        let neg_psi=0.5*sig_tot*sig_tot*(u-u*u);
+        let k_star=k-u*rho*sig*sig_tot;
+        let ada=(k_star*k_star+2.0*sig*sig*neg_psi as Complex<f64>).sqrt();
+        let b_t=2.0*neg_psi*(1.0-(-ada*t).exp())/(2.0*ada-(ada-k_star)*(1.0-(-ada*t).exp()));
+        let c_t=(k/(sig*sig))*(2.0*(1.0-(1.0-(-ada*t).exp())*(ada-k_star)/(2.0*ada)).ln()+(ada-k_star)*t);
+        let cf_heston=(-b_t*v0-c_t).exp().re;
+        let approx_heston_cf=heston_cf(t, 0.0, sig_tot, v0, k, sig, rho)(&u).re;
         assert_eq!(cf_heston, approx_heston_cf);
     }
 }
