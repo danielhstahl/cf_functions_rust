@@ -745,7 +745,7 @@ pub fn heston_cf(
     ).exp()
 }
 /// Returns volatility of Merton jump diffusion
-pub fn get_jump_diffusion_vol(
+pub fn jump_diffusion_vol(
     sigma:f64,
     lambda:f64,
     mu_l:f64,
@@ -755,7 +755,7 @@ pub fn get_jump_diffusion_vol(
     ((sigma.powi(2)+lambda*(mu_l.powi(2)+sig_l.powi(2)))*maturity).sqrt()
 }
 /// Returns volatility of CGMY
-pub fn get_cgmy_diffusion_vol(
+pub fn cgmy_diffusion_vol(
     sigma:f64,
     c:f64,
     g:f64,
