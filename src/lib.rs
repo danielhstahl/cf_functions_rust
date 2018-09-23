@@ -565,7 +565,7 @@ pub fn cgmy_time_change_log_cf(
 /// Returns Heston model log CF.
 /// 
 /// # Remarks
-/// The time change is assumed to be a CIR process with long run mean of 1.0.
+/// The time change is assumed to be a CIR process.
 /// 
 /// # Examples
 /// 
@@ -707,7 +707,7 @@ pub fn cgmy_time_change_cf(
 /// Returns Heston model log CF.
 /// 
 /// # Remarks
-/// The time change is assumed to be a CIR process with long run mean of 1.0.
+/// The time change is assumed to be a CIR process
 /// 
 /// # Examples
 /// 
@@ -743,6 +743,27 @@ pub fn heston_cf(
     move |u|(rate*t*u+
         heston_log_cf(u, t, sigma, v0, speed, eta_v, rho)
     ).exp()
+}
+/// Returns volatility of Merton jump diffusion
+pub fn get_jump_diffusion_vol(
+    sigma:f64,
+    lambda:f64,
+    mu_l:f64,
+    sig_l:f64,
+    maturity:f64
+)->f64 {
+    ((sigma.powi(2)+lambda*(mu_l.powi(2)+sig_l.powi(2)))*maturity).sqrt()
+}
+/// Returns volatility of CGMY
+pub fn get_cgmy_diffusion_vol(
+    sigma:f64,
+    c:f64,
+    g:f64,
+    m:f64,
+    y:f64,
+    maturity:f64
+)->f64 {
+    ((sigma.powi(2)+c*(2.0-y).gamma()*(m.powf(y-2.0)+g.powf(y-2.0)))*maturity).sqrt()
 }
 
 #[cfg(test)]
