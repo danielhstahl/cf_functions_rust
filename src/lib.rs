@@ -453,7 +453,8 @@ fn generic_leverage_diffusion(
     eta_v:f64,
     rho:f64
 )->Complex<f64>{
-    let ln_m=speed-eta_v*rho*u*sigma;
+    //implies that long run mean is one
+    let ln_m=speed-eta_v*rho*u*sigma; 
     let cf_fn_rn=-get_cf(u);
     cir_log_mgf_cmp(
         &cf_fn_rn, 
@@ -574,15 +575,15 @@ pub fn cgmy_time_change_log_cf(
 /// extern crate cf_functions;
 /// # fn main() {
 /// let u = Complex::new(1.0, 1.0);
-/// let sigma = 0.3; //volatility of underlying diffusion
+/// let sigma = 0.3; //square root of long run average
 /// let t = 0.5; //time horizon
-/// let speed = 0.5; //speed of CIR process
-/// let v0 = 0.9; //initial value of CIR process 
-/// let eta_v = 0.3; //volatility of CIR process
-/// let rho = -0.5; //correlation between diffusions
+/// let speed = 0.5; //speed of mear reversion CIR process
+/// let v0 = 0.25; //initial value of CIR process 
+/// let eta_v = 0.3; //volatility of CIR process (vol of vol)
+/// let rho = -0.5; //correlation 
 /// let log_cf = cf_functions::heston_log_cf(
-///     &u, t, 
-///     sigma, v0, speed, eta_v, rho
+///     &u, t, sigma, v0, 
+///     speed, eta_v, rho
 /// );
 /// # }
 /// ```
@@ -595,10 +596,11 @@ pub fn heston_log_cf(
     eta_v:f64,
     rho:f64    
 )->Complex<f64>{
+    let sigma_sq=sigma.powi(2);
     generic_leverage_diffusion(
         u, 
-        &|u|gauss_log_cf(u, -0.5*sigma.powi(2), sigma),
-        t, sigma, v0, speed, eta_v, rho
+        &|u|gauss_log_cf(u, -0.5*sigma_sq, sigma),
+        t, sigma, v0/sigma_sq, speed, eta_v/sigma, rho
     )
 }
 
@@ -715,12 +717,12 @@ pub fn cgmy_time_change_cf(
 /// extern crate cf_functions;
 /// # fn main() {
 /// let u = Complex::new(1.0, 1.0);
-/// let sigma = 0.3; //volatility of underlying diffusion
+/// let sigma = 0.3; //square root of long run average
 /// let t = 0.5; //time horizon
 /// let rate = 0.05;
-/// let speed = 0.5; //speed of CIR process
-/// let v0 = 0.9; //initial value of CIR process 
-/// let eta_v = 0.3; //volatility of CIR process
+/// let speed = 0.5; //speed of mean reversion of CIR process
+/// let v0 = 0.29; //initial value of CIR process 
+/// let eta_v = 0.3; //volatility of CIR process (vol of vol)
 /// let rho = -0.5; //correlation between diffusions
 /// let cf = cf_functions::heston_cf(
 ///     t, rate, 
@@ -803,7 +805,7 @@ mod tests {
         let b_t=2.0*neg_psi*(1.0-(-ada*t).exp())/(2.0*ada-(ada-k_star)*(1.0-(-ada*t).exp()));
         let c_t=(k/(sig*sig))*(2.0*(1.0-(1.0-(-ada*t).exp())*(ada-k_star)/(2.0*ada)).ln()+(ada-k_star)*t);
         let cf_heston=(-b_t*v0-c_t).exp().re;
-        let approx_heston_cf=heston_cf(t, 0.0, sig_tot, v0, k, sig, rho)(&u).re;
+        let approx_heston_cf=heston_cf(t, 0.0, sig_tot, v0*sig_tot.powi(2), k, sig*sig_tot, rho)(&u).re;
         assert_eq!(cf_heston, approx_heston_cf);
     }
 }
