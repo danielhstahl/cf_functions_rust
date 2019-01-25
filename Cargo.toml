@@ -1,6 +1,6 @@
 [package]
 name = "cf_functions"
-version = "0.11.0"
+version = "0.12.0"
 authors = ["Daniel Stahl <danstahl1138@gmail.com>"]
 homepage = "https://github.com/phillyfan1138/cf_functions_rust"
 repository = "https://github.com/phillyfan1138/cf_functions_rust"
@@ -14,6 +14,7 @@ special = "0.7"
 
 [dev-dependencies]
 approx = "0.2.0"
-
+fang_oost = "0.13.8"
+cf_dist_utils = "0.8.1"
 [badges]
 travis-ci = { repository = "phillyfan1138/cf_functions_rust" }

@@ -7,6 +7,10 @@ extern crate special;
 #[macro_use]
 #[cfg(test)]
 extern crate approx;
+#[cfg(test)]
+extern crate fang_oost;
+#[cfg(test)]
+extern crate cf_dist_utils;
 
 use num_complex::Complex;
 use special::Gamma;
@@ -770,7 +774,7 @@ pub fn cgmy_diffusion_vol(
     ((sigma.powi(2)+c*(2.0-y).gamma()*(m.powf(y-2.0)+g.powf(y-2.0)))*maturity).sqrt()
 }
 
-
+//needed to solve ODE for duffie MGF
 fn runge_kutta_complex_vector(
     fx: &Fn(f64, &Complex<f64>, &Complex<f64>)->(Complex<f64>, Complex<f64>), 
     mut init_value_1:Complex<f64>, 
@@ -800,14 +804,14 @@ fn alpha_or_beta(rho:f64, k:f64, h:f64, l:f64)->impl (Fn(&Complex<f64>, &Complex
 
 fn duffie_mgf_increment(
     u: &Complex<f64>,
-    ode_val_1:&Complex<f64>, 
+    ode_val_2:&Complex<f64>, 
     rho0:f64, rho1:f64, k0:f64, k1:f64, h0:f64, h1:f64, l0:f64, l1:f64, 
     cf: &Fn(&Complex<f64>)->Complex<f64>
 )->(Complex<f64>, Complex<f64>){
     let cf_part=cf(u)-1.0;
-    let alpha=alpha_or_beta(rho1, k1, h1, l1);
-    let beta=alpha_or_beta(rho0, k0, h0, l0);
-    (alpha(ode_val_1, &cf_part), beta(ode_val_1, &cf_part))
+    let beta=alpha_or_beta(rho1, k1, h1, l1);
+    let alpha=alpha_or_beta(rho0, k0, h0, l0);
+    (alpha(ode_val_2, &cf_part), beta(ode_val_2, &cf_part))
 }
 
 //jump leverage...http://web.stanford.edu/~duffie/dps.pdf page 10
@@ -821,23 +825,52 @@ fn generic_leverage_jump(
     let init_value_1=Complex::new(0.0, 0.0);
     let init_value_2=Complex::new(0.0, 0.0);
     let delta=if l1>0.0&& expected_value_of_cf>0.0{correlation/(expected_value_of_cf*l1)}else{0.0};
-    let fx=move |_t:f64, curr_val_1:&Complex<f64>, _curr_val_2:&Complex<f64>|{
-        duffie_mgf_increment(&(u+delta*curr_val_1), curr_val_1, rho0, rho1, k0, k1, h0, h1, l0, l1, cf) 
+    let fx=move |_t:f64, _curr_val_1:&Complex<f64>, curr_val_2:&Complex<f64>|{
+        duffie_mgf_increment(&(u+delta*curr_val_2), curr_val_2, rho0, rho1, k0, k1, h0, h1, l0, l1, cf) 
     };
-    let (res1, res2)=runge_kutta_complex_vector(&fx, init_value_1, init_value_2, t, num_steps);
-    res1*v0+res2
+    let (alpha, beta)=runge_kutta_complex_vector(&fx, init_value_1, init_value_2, t, num_steps);
+    beta*v0+alpha
 }
 
-const BETA_STABLE:f64=1.0;//for finite expectation
-//for alpha distribution
+//Note that rho1=lambda*(1-E[e^uiL]) BUT that when simplified it 
+//becomes part of the jump part (it adjusts the cf by delta*beta)
+//So rho1=0, K1=a, and K1=-a*kappahat where kappahat=1+correlation/a
+//and correlation=delta*E[L]*lambda
+fn cir_leverage_jump(
+    u:&Complex<f64>,
+    cf: &Fn(&Complex<f64>)->Complex<f64>,
+    t:f64, v0:f64, correlation:f64, expected_value_of_cf:f64,
+    a:f64, sigma:f64, lambda:f64,
+    num_steps:usize
+)->Complex<f64>{
+    let kappa=1.0+correlation/a; //to stay expectation of 1
+    generic_leverage_jump(
+        u, cf, t, v0, correlation, expected_value_of_cf,
+        0.0, 0.0, a, -a*kappa, 0.0, sigma.powi(2), 0.0, lambda, num_steps
+    )
+}
+
+
+const BETA_STABLE:f64=1.0;//to stay on the positive reals
+
+//for stable distribution
 fn alpha_stable_log(
     u:&Complex<f64>, t:f64, v0:f64, a:f64, sigma:f64, lambda:f64, correlation:f64, 
     alpha:f64, mu:f64, c:f64, num_steps:usize
 )->Complex<f64>{
-    let b=1.0-correlation;//to stay expectation of 1
-    generic_leverage_jump(
-        u, &|u|stable_cf(u, alpha, mu, BETA_STABLE, c), t, v0, correlation, mu,
-        0.0, 0.0, a*b, -a, 0.0, sigma.powi(2), 0.0, lambda, num_steps
+    cir_leverage_jump(
+        u, &|u|stable_cf(u, alpha, mu, BETA_STABLE, c), 
+        t, v0, correlation, mu, a, sigma, lambda, num_steps
+    )
+}
+//for gamma distribution
+fn gamma_log(
+    u:&Complex<f64>, t:f64, v0:f64, a:f64, sigma:f64, lambda:f64, correlation:f64, 
+    alpha:f64, beta:f64, num_steps:usize
+)->Complex<f64>{
+    cir_leverage_jump(
+        u, &|u|gamma_cf(u, alpha, beta), 
+        t, v0, correlation, alpha*beta, a, sigma, lambda, num_steps
     )
 }
 
@@ -889,9 +922,76 @@ pub fn alpha_stable_leverage(
     }
 }
 
+/// Returns log CF of an gamma jump diffusion when transformed by an affine process
+/// and the process is correlated with the jump component of the Levy process.
+/// 
+/// # Remarks
+/// The time change is assumed to be a single-dimensional CIR process with a 
+/// jump component with mean 1.  
+/// The correlation between the Levy process and the affine process is due
+/// to sharing the same jumps (both the Levy process and the affine process
+/// jump at the same time).
+/// 
+/// # Examples
+/// 
+/// ```
+/// extern crate num_complex;
+/// use num_complex::Complex;
+/// extern crate cf_functions;
+/// # fn main() {
+/// let alpha=2.0;
+/// let beta=3.0;
+/// let alpha=1.1;
+/// let lambda=100.0;
+/// let correlation=0.9;
+/// let a=0.4;
+/// let sigma=0.4;
+/// let t=1.0;
+/// let v0=1.0;
+/// let num_steps:usize=1024;
+/// let cf=|u:&Complex<f64>|u.exp();
+/// let cf=cf_functions::gamma_leverage(
+///     t, v0, a, sigma, lambda, 
+///     correlation, alpha, beta, num_steps
+/// );
+/// let u=Complex::new(0.05, -0.5);
+/// let value_of_cf=cf(&u);
+/// # }
+/// ```
+pub fn gamma_leverage(
+    t:f64, v0:f64, a:f64, sigma:f64, lambda:f64, correlation:f64, 
+    alpha:f64, beta:f64, num_steps:usize
+)->impl Fn(&Complex<f64>)->Complex<f64>{
+    move |u|{
+        gamma_log(
+            u, t, v0, a, sigma, lambda, correlation, 
+            alpha, beta, num_steps
+        ).exp()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn test_gamma_leverage_expectation(){
+        let t=2.0;
+        let num_steps=1024;
+        let v0=1.0;
+        let a=0.4;
+        let sigma=0.4;
+        let lambda=100.0;
+        let correlation=0.9;
+        let alpha=2.0;
+        let beta=4.0;
+        let x_min=0.0;
+        let x_max=lambda*alpha*beta*beta*5.0*t;
+        let num_u:usize=256;
+        let cf=gamma_leverage(t, v0, a, sigma, lambda, correlation, alpha, beta, num_steps);
+        let discrete_cf=fang_oost::get_discrete_cf(num_u, x_min, x_max, &cf);
+        let expectation=cf_dist_utils::get_expectation_discrete_cf(x_min, x_max, &discrete_cf);
+        assert_abs_diff_eq!(expectation, lambda*alpha*beta*t, epsilon=0.00001);
+    }
     #[test]
     fn runge_kutta(){
         let t=2.0;
