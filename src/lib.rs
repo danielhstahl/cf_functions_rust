@@ -810,7 +810,8 @@ fn runge_kutta_complex_vector(
     (init_value_1, init_value_2)
 }
 
-//helper for ODE
+//helper for ODE, http://web.stanford.edu/~duffie/dps.pdf
+//since with respect to T-t, this is the opposite sign as the paper
 fn alpha_or_beta(rho:f64, k:f64, h:f64, l:f64)->impl (Fn(&Complex<f64>, &Complex<f64>)->Complex<f64>){
     move |ode_val:&Complex<f64>, cf_val:&Complex<f64>|-rho+k*ode_val+0.5*ode_val*ode_val*h+l*cf_val
 }
@@ -845,10 +846,16 @@ fn generic_leverage_jump(
     beta*v0+alpha
 }
 
-//Note that rho1=lambda*(1-E[e^uiL]) BUT that when simplified it 
-//becomes part of the jump part (it adjusts the cf by delta*beta)
-//So rho1=0, K1=a, and K1=-a*kappahat where kappahat=1+correlation/a
-//and correlation=delta*E[L]*lambda
+//From page 8 and 9 of my ops risk paper
+//https://github.com/phillyfan1138/OpsRiskPaper/blob/master/OpsRiskForRiskNet.pdf
+//The expectation is E[e^{lambda*(1-E[e^uiL])\int v_s ds}]
+//Using the duffie ODE formula, rho0=0, rho1=lambda*(1-E[e^uiL]),
+//k0=a, k1=-a*kappahat (where kappahat=1+correlation/a 
+//and and correlation=delta*E[L]*lambda), h0=0,
+//h1=sigma*sigma, l0=0, l1=lambda.  However, this can be 
+//simplified so that rho1=0 by adjusting the cf of the 
+//jump to have (u-i*delta*beta) instead of just u.  
+//See equation 8 in my ops risk paper.
 fn cir_leverage_jump(
     u:&Complex<f64>,
     cf: &Fn(&Complex<f64>)->Complex<f64>,
