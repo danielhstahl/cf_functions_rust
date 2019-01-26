@@ -398,6 +398,9 @@ pub fn cir_mgf_cmp(
     cir_log_mgf_cmp(psi, a, kappa, sigma, t, v0).exp()
 }
 
+fn compute_stable_phi(alpha:f64)->f64{
+    (alpha*0.5*PI).tan()
+}
 /// Returns characteristic function of a stable distribution.
 /// # Examples
 /// 
@@ -423,7 +426,17 @@ pub fn stable_cf(
     beta:f64,
     c:f64
 )->Complex<f64>{
-    let phi=(alpha*0.5*PI).tan();
+    let phi=compute_stable_phi(alpha);
+    (u*mu-(u*Complex::new(0.0, -1.0)*c).powf(alpha)*Complex::new(1.0, -beta*phi)).exp()
+}
+fn stable_cf_memoize(
+    u:&Complex<f64>,
+    alpha:f64,
+    mu:f64,
+    beta:f64,
+    c:f64,
+    phi:f64
+)->Complex<f64>{
     (u*mu-(u*Complex::new(0.0, -1.0)*c).powf(alpha)*Complex::new(1.0, -beta*phi)).exp()
 }
 
@@ -856,10 +869,10 @@ const BETA_STABLE:f64=1.0;//to stay on the positive reals
 //for stable distribution
 fn alpha_stable_log(
     u:&Complex<f64>, t:f64, v0:f64, a:f64, sigma:f64, lambda:f64, correlation:f64, 
-    alpha:f64, mu:f64, c:f64, num_steps:usize
+    alpha:f64, mu:f64, c:f64, phi:f64, num_steps:usize
 )->Complex<f64>{
     cir_leverage_jump(
-        u, &|u|stable_cf(u, alpha, mu, BETA_STABLE, c), 
+        u, &|u|stable_cf_memoize(u, alpha, mu, BETA_STABLE, c, phi), 
         t, v0, correlation, mu, a, sigma, lambda, num_steps
     )
 }
@@ -914,10 +927,11 @@ pub fn alpha_stable_leverage(
     t:f64, v0:f64, a:f64, sigma:f64, lambda:f64, correlation:f64, 
     alpha:f64, mu:f64, c:f64, num_steps:usize
 )->impl Fn(&Complex<f64>)->Complex<f64>{
+    let phi=compute_stable_phi(alpha);
     move |u|{
         alpha_stable_log(
             u, t, v0, a, sigma, lambda, correlation, 
-            alpha, mu, c, num_steps
+            alpha, mu, c, phi, num_steps
         ).exp()
     }
 }
