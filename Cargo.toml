@@ -1,13 +1,13 @@
 [package]
 name = "cf_functions"
-version = "0.12.1"
+version = "0.13.0"
 authors = ["Daniel Stahl <danstahl1138@gmail.com>"]
 homepage = "https://github.com/phillyfan1138/cf_functions_rust"
 repository = "https://github.com/phillyfan1138/cf_functions_rust"
 readme = "README.md"
 license = "MIT"
 description = "A library which has characteristic functions for a variety of distributions."
-
+edition = "2018"
 [dependencies]
 num-complex = "0.2"
 special = "0.7"

@@ -1,16 +1,6 @@
 //! Provides several common characteristic functions for
 //! option pricing.  All of the characteristic functions
 //! are with respect to "ui" instead of "u".  
-extern crate num_complex;
-extern crate special;
-
-#[macro_use]
-#[cfg(test)]
-extern crate approx;
-#[cfg(test)]
-extern crate fang_oost;
-#[cfg(test)]
-extern crate cf_dist_utils;
 
 use num_complex::Complex;
 use special::Gamma;
@@ -994,6 +984,7 @@ pub fn gamma_leverage(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use approx::*;
     #[test]
     fn test_gamma_leverage_expectation(){
         let t=2.0;
