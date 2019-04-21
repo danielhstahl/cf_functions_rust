@@ -391,6 +391,17 @@ pub fn cir_mgf_cmp(
 fn compute_stable_phi(alpha:f64)->f64{
     (alpha*0.5*PI).tan()
 }
+
+fn stable_cf_memoize(
+    u:&Complex<f64>,
+    alpha:f64,
+    mu:f64,
+    beta:f64,
+    c:f64,
+    phi:f64
+)->Complex<f64>{
+    (u*mu-(u*Complex::new(0.0, -1.0)*c).powf(alpha)*Complex::new(1.0, -beta*phi)).exp()
+}
 /// Returns characteristic function of a stable distribution.
 /// # Examples
 /// 
@@ -417,18 +428,9 @@ pub fn stable_cf(
     c:f64
 )->Complex<f64>{
     let phi=compute_stable_phi(alpha);
-    (u*mu-(u*Complex::new(0.0, -1.0)*c).powf(alpha)*Complex::new(1.0, -beta*phi)).exp()
+    stable_cf_memoize(&u, alpha, mu, beta, c, phi)
 }
-fn stable_cf_memoize(
-    u:&Complex<f64>,
-    alpha:f64,
-    mu:f64,
-    beta:f64,
-    c:f64,
-    phi:f64
-)->Complex<f64>{
-    (u*mu-(u*Complex::new(0.0, -1.0)*c).powf(alpha)*Complex::new(1.0, -beta*phi)).exp()
-}
+
 
 /// Returns characteristic function of a gamma distribution.
 /// # Examples
