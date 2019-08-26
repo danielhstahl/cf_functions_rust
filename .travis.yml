@@ -1,6 +1,5 @@
 language: rust
 sudo: required
-
 addons:
   apt:
     packages:
@@ -16,9 +15,6 @@ before_cache: |
   if [ "$TRAVIS_RUST_VERSION" = "nightly" ]; then
     RUSTFLAGS="--cfg procmacro2_semver_exempt" cargo install cargo-tarpaulin
   fi
-
-
-
 after_success: |
   if [ "$TRAVIS_RUST_VERSION" = "nightly" ]; then
     cargo tarpaulin --out Xml
@@ -29,19 +25,14 @@ after_success: |
     cargo doc
     cargo publish --token "$CARGO_API" --allow-dirty
   fi
-#env:
-#  matrix:
-#    secure: u9VAMeXLg0YcSIGCY5j8sB82nmyv28VZH0kZuRLqFZf1B7IbELoLDdhbS3U4rxP1YBsnkzAM7h2rgIt/Rn5/TE0199CHErswnwHQ3l2Ql7/Nx5+zSRnuYEngLuxbc7SGPqbXajSMQdkQGlnYDW25vLgR9amHQTZ2EhEAIQMr/7GSyKrzhiVQZ+AQNqxJrBXstMSay3JsA1QiAPKbhdgSC6FSbYfJ/WRVRFyV1YxpVSIQ8hMoEO6Ih5TspDAbZX2nOq5spUZGA9gr3DLT8ixfZjYlXbL07d6IslO1+cfUGd+rrX2RXmepbC4kPkyBnSvIfntlJxvNVGZxIrxXwMcKd4R8HkvymL4zHZYeZKzooL8HHbW7wmM9f5Al2R+7gRXeCyo2ZCI61j+THdQkNuW5aCrBWfOVxngOJoSRoO+VwvFuU2nATsVZpZBex7mh3/6liFkKVPKwftYcSSefyzE8fCyhLRoF9hr3L8lHmTQ5sgMkzRjvdDciPN7nt+yXsyulzZpiuwY4vrTj/OYN3PGM9DZyNHi9EaXzLUJx9CpTZYwTKCdoSg4yYD2gDRsiFwqDOm4IHGqblyetyk8GZp551Cv++CxBPQnsiehIbKQEp5rkl7+asAVaNv0IRfaSyUIeQkxPNDza3MsVxv2IGM1NfnVvcqlUDGwYejEHH7E2r74=
-
 matrix:
   include:
-    - rust: stable
-      env:
-        - secure: u9VAMeXLg0YcSIGCY5j8sB82nmyv28VZH0kZuRLqFZf1B7IbELoLDdhbS3U4rxP1YBsnkzAM7h2rgIt/Rn5/TE0199CHErswnwHQ3l2Ql7/Nx5+zSRnuYEngLuxbc7SGPqbXajSMQdkQGlnYDW25vLgR9amHQTZ2EhEAIQMr/7GSyKrzhiVQZ+AQNqxJrBXstMSay3JsA1QiAPKbhdgSC6FSbYfJ/WRVRFyV1YxpVSIQ8hMoEO6Ih5TspDAbZX2nOq5spUZGA9gr3DLT8ixfZjYlXbL07d6IslO1+cfUGd+rrX2RXmepbC4kPkyBnSvIfntlJxvNVGZxIrxXwMcKd4R8HkvymL4zHZYeZKzooL8HHbW7wmM9f5Al2R+7gRXeCyo2ZCI61j+THdQkNuW5aCrBWfOVxngOJoSRoO+VwvFuU2nATsVZpZBex7mh3/6liFkKVPKwftYcSSefyzE8fCyhLRoF9hr3L8lHmTQ5sgMkzRjvdDciPN7nt+yXsyulzZpiuwY4vrTj/OYN3PGM9DZyNHi9EaXzLUJx9CpTZYwTKCdoSg4yYD2gDRsiFwqDOm4IHGqblyetyk8GZp551Cv++CxBPQnsiehIbKQEp5rkl7+asAVaNv0IRfaSyUIeQkxPNDza3MsVxv2IGM1NfnVvcqlUDGwYejEHH7E2r74=
-        - secure: oaGT9X2ayF3Y68zoTTzVe6PsEh6BTtdMfywabZG8n423g3fPNongtFxia+IT9TxZVpvqi7zd8zO7IdxluaQ0KIPUVXndba/5z0kplvSEUgTx+SYpMONR+No/jmlfLlOa+lxeOMxC75PBzMraMCI/Zy+DvliEPn8v3XXE5b2nkubuWj2TJTO5kaGCQnVijr5JUFiDFMqh2/CtV9XOiVofYIYxUqVr3yv5iJM/ws9JEo44ekdrUy2C2DRjEeOqNAga71cGvcxHtlhlsOh2e/wSgqOuxo23vz1iGdb48lxPQS9XesPLloiewdlHFbQpHLe8b3j8IZkKNeS+0E6E2C8pwYD2e2FbzAyZ+rzkUTjTrvlNfZSqm1M5+pObwMgGf4tYZ2S3G9g7crg7HJ0qF1+XKrImownqv1cohu7uq6cyKMLngb37IOrArWjOWb2YaLRGXH9PQOQEPxSo5yE02g0YNxoOQXjNtU2tlCgeLgp0JII5VzWxNEH0tI/F/gNUh21Kx5bMiROgxlk+qyqfK3xhGFAiKA26q8udE3+1QsYhm1ek/DX3hHhj3604deu7XFK/EMUmhPk/rMeWBRejNLjDmCe1fnGiNqIuLIWI2dX+4/SYRwsoQ4Je++4soc4m/SRZC/jN37Vx4jH4p/YasejMfeNZ9mim6D17d7Ew5Djb8II=
+  - rust: stable
+    env:
+    - secure: u9VAMeXLg0YcSIGCY5j8sB82nmyv28VZH0kZuRLqFZf1B7IbELoLDdhbS3U4rxP1YBsnkzAM7h2rgIt/Rn5/TE0199CHErswnwHQ3l2Ql7/Nx5+zSRnuYEngLuxbc7SGPqbXajSMQdkQGlnYDW25vLgR9amHQTZ2EhEAIQMr/7GSyKrzhiVQZ+AQNqxJrBXstMSay3JsA1QiAPKbhdgSC6FSbYfJ/WRVRFyV1YxpVSIQ8hMoEO6Ih5TspDAbZX2nOq5spUZGA9gr3DLT8ixfZjYlXbL07d6IslO1+cfUGd+rrX2RXmepbC4kPkyBnSvIfntlJxvNVGZxIrxXwMcKd4R8HkvymL4zHZYeZKzooL8HHbW7wmM9f5Al2R+7gRXeCyo2ZCI61j+THdQkNuW5aCrBWfOVxngOJoSRoO+VwvFuU2nATsVZpZBex7mh3/6liFkKVPKwftYcSSefyzE8fCyhLRoF9hr3L8lHmTQ5sgMkzRjvdDciPN7nt+yXsyulzZpiuwY4vrTj/OYN3PGM9DZyNHi9EaXzLUJx9CpTZYwTKCdoSg4yYD2gDRsiFwqDOm4IHGqblyetyk8GZp551Cv++CxBPQnsiehIbKQEp5rkl7+asAVaNv0IRfaSyUIeQkxPNDza3MsVxv2IGM1NfnVvcqlUDGwYejEHH7E2r74=
+    - secure: ldhZcdTmIFi64IlzItROIBw/0m22WtXrrqZWA7oqFXIRskDxYzioh1kysuqjIIEBZff//JB7gKopxdYZejEmPfjb5g6B5aF6XoWrY/xGkzN9WtGZk2OYWCIy2dH8ESTMHxzRhALqb6WRau/f1YBLKihKJtRANqkwMIxB44zN7KNZM790KVmqHYnVkKA+0UboZPtaEGWw9j3JJEBhNsRJT4KJaQLcXogwLPi6sE7rqy8LlftMokBqAuJ3VPhy/ywF6pF6WBrF6XYXVO3xy4sEWWlq5+oEl9+eE4qTIwc7GdkQM6GrRUn6GtRebOBYzScqaD20nv0hS0xOLUNQuCtVxpWg8AbBJ0fRwDEqHyYB4FY0+cg7dHn50Kp+62TTNDM0Gm7DxG+Iz2Kg30zoL0EH0rLVn0XuvTf3+hMAAHVz34kjZdyGP9j+6kDEb0PZz3J1UyBrlS6bvUAPVAKlXiFLm/6WU0036RuO6hy2ZE6vu/ObuTiJHHKvBtQjqDMK8C9doYF0Mbo5rRkJPsMKAhY1AEvIpYfOGBRgwrAF8utS8AqP7oEfN14zwfUf9Op66Vvfnyu8nhVgIAiTG1fqrhqINz69V9172pw0PM6A8tSLr/gr88O3EmRxFN8ilo73w5M1RrHjQ7rsceDCxiMeIMbObUQpMtZhvBOSc4oKLnTgqzk=
     - rust: nightly
-    - rust: beta
-
+  - rust: beta
 deploy:
   provider: pages
   skip_cleanup: true
