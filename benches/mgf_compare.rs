@@ -22,7 +22,6 @@ fn bench_mgf(c: &mut Criterion) {
                 let a=0.3;
                 let b=0.05;
                 let r0=0.05;
-                //let h=(a*a+2.0*sigma*sigma as f64).sqrt();
                 let t=0.25;
                 let rho0=0.0;
                 let rho1=1.0;
