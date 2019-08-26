@@ -17,10 +17,15 @@ before_cache: |
     RUSTFLAGS="--cfg procmacro2_semver_exempt" cargo install cargo-tarpaulin
   fi
 
+
+
 after_success: |
   if [ "$TRAVIS_RUST_VERSION" = "nightly" ]; then
     cargo tarpaulin --out Xml
     bash <(curl -s https://codecov.io/bash)
+  fi
+  if [ "$TRAVIS_RUST_VERSION" = stable ]; then
+    cargo bench
     cargo doc
     cargo publish --token "$CARGO_API" --allow-dirty
   fi
