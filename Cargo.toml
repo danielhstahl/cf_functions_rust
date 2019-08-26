@@ -16,5 +16,12 @@ special = "0.7"
 approx = "0.2.0"
 fang_oost = "0.13.8"
 cf_dist_utils = "0.8.1"
+criterion = "0.2"
+
+[[bench]]
+name = "mgf_compare"
+harness = false
+
+
 [badges]
 travis-ci = { repository = "phillyfan1138/cf_functions_rust" }

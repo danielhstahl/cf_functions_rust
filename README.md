@@ -10,3 +10,7 @@
 # CF functions
 
 Implements common CF functions in Rust
+
+# Benchmarks
+
+https://phillyfan1138.github.io/cf_functions_rust/report
