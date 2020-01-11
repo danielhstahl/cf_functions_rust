@@ -14,3 +14,7 @@ Implements common CF functions in Rust
 # Benchmarks
 
 https://phillyfan1138.github.io/cf_functions_rust/report/index.html
+
+# Crates
+
+https://crates.io/crates/cf_functions
