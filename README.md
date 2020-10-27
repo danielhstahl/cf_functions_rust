@@ -14,7 +14,9 @@ Implements common CF functions in Rust
 ## References
 
 Duffie: http://web.stanford.edu/~duffie/dps.pdf
+
 Carr-Geman-Madan-Yor: http://finance.martinsewell.com/stylized-facts/distribution/CarrGemanMadanYor2002.pdf
+
 My ops-risk paper: https://github.com/danielhstahl/OpsRiskPaper/releases/download/0.1.0/main.pdf
 
 
