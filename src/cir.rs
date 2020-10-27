@@ -295,7 +295,7 @@ pub fn generic_leverage_jump(
 }
 
 //From page 8 and 9 of my ops risk paper
-//https://github.com/phillyfan1138/OpsRiskPaper/blob/master/OpsRiskForRiskNet.pdf
+//https://github.com/danielhstahl/OpsRiskPaper/releases/download/0.1.0/main.pdf
 //The expectation is E[e^{lambda*(1-E[e^uiL])\int v_s ds}]
 //Using the duffie ODE formula, rho0=0, rho1=lambda*(1-E[e^uiL]),
 //k0=a, k1=-a*kappahat (where kappahat=1+correlation/a
