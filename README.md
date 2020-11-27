@@ -2,10 +2,10 @@
 | :---------------: | :-------------------: |
 | ![lin-badge]      | ![cov-badge]          |
 
-[lin-badge]: https://github.com/phillyfan1138/cf_functions_rust/workflows/Rust/badge.svg
-[lin-link]:  https://github.com/phillyfan1138/cf_functions_rust/actions
-[cov-badge]: https://codecov.io/gh/phillyfan1138/cf_functions_rust/branch/master/graph/badge.svg
-[cov-link]:  https://codecov.io/gh/phillyfan1138/cf_functions_rust
+[lin-badge]: https://github.com/danielhstahl/cf_functions_rust/workflows/Rust/badge.svg
+[lin-link]:  https://github.com/danielhstahl/cf_functions_rust/actions
+[cov-badge]: https://codecov.io/gh/danielhstahl/cf_functions_rust/branch/master/graph/badge.svg
+[cov-link]:  https://codecov.io/gh/danielhstahl/cf_functions_rust
 
 # CF functions
 
@@ -23,7 +23,7 @@ My ops-risk paper: https://github.com/danielhstahl/OpsRiskPaper/releases/downloa
 
 # Benchmarks
 
-https://phillyfan1138.github.io/cf_functions_rust/report/index.html
+https://danielhstahl.github.io/cf_functions_rust/report/index.html
 
 # Crates
 
