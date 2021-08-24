@@ -19,3 +19,20 @@ jobs:
         ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
         BRANCH: gh-pages
         FOLDER: target/criterion
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - uses: hecrj/setup-rust-action@master
+      with:
+        rust-version: stable
+    - name: Build
+      run: cargo build --verbose
+    - name: Run tests stable
+      run: cargo test 
+    - name: Document 
+      run: cargo doc
+    - name: Publish
+      run: |
+        cargo bench
+        cargo publish --token ${{ secrets.CARGO_TOKEN }} --allow-dirty || true
