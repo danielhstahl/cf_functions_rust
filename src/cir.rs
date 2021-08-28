@@ -184,7 +184,7 @@ pub fn generic_leverage_diffusion(
 }
 
 //needed to solve ODE for duffie MGF
-fn runge_kutta_complex_vector(
+pub fn runge_kutta_complex_vector(
     fx: &dyn Fn(f64, &Complex<f64>, &Complex<f64>) -> (Complex<f64>, Complex<f64>),
     mut init_value_1: Complex<f64>,
     mut init_value_2: Complex<f64>,
@@ -220,7 +220,7 @@ fn runge_kutta_complex_vector(
 
 //helper for ODE, http://web.stanford.edu/~duffie/dps.pdf
 //since with respect to T-t, this is the opposite sign as the paper
-fn alpha_or_beta(
+pub fn alpha_or_beta(
     rho: f64,
     k: f64,
     h: f64,
