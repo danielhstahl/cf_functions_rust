@@ -1,27 +1,27 @@
 [package]
-name = "cf_functions"
-version = "0.14.0"
 authors = ["Daniel Stahl <danstahl1138@gmail.com>"]
-homepage = "https://github.com/phillyfan1138/cf_functions_rust"
-repository = "https://github.com/phillyfan1138/cf_functions_rust"
-readme = "README.md"
-license = "MIT"
 description = "A library which has characteristic functions for a variety of distributions."
 edition = "2018"
+homepage = "https://github.com/phillyfan1138/cf_functions_rust"
+license = "MIT"
+name = "cf_functions"
+readme = "README.md"
+repository = "https://github.com/phillyfan1138/cf_functions_rust"
+version = "0.14.0"
 [dependencies]
 num-complex = "0.2"
 special = "0.7"
 
 [dev-dependencies]
 approx = "0.2.0"
-fang_oost = "0.13.8"
 cf_dist_utils = "0.8.1"
 criterion = "0.2"
+fang_oost = "0.13.8"
+fang_oost_option = "0.31"
 
 [[bench]]
-name = "mgf_compare"
 harness = false
-
+name = "mgf_compare"
 
 [badges]
-travis-ci = { repository = "phillyfan1138/cf_functions_rust" }
+travis-ci = {repository = "phillyfan1138/cf_functions_rust"}
