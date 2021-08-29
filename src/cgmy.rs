@@ -180,7 +180,9 @@ fn leverage_neutral_pure_jump_log_cf(
 /// correlation between the pure-jump time changed process and the underlying.
 ///
 /// # Remarks
-/// The time change is assumed to be a CIR process with long run mean of 1.0.
+/// The pure-jump time change is assumed to be an affine mean-reverting process
+/// with long run mean of 1.0.  For more information, see https://poseidon01.ssrn.com/delivery.php?ID=737027111000006077113070089110095064016020050037028066000080065074127006086092092026061120060015055036110006010126103066122080108059078076004070004065091125021108014077028121011029092117112080127092065007111098070065099086069122086067104098093017117&EXT=pdf&INDEX=TRUE
+/// page 11.  
 ///
 /// # Examples
 ///
@@ -221,7 +223,6 @@ pub fn cgmyse_time_change_cf(
     num_steps: usize,
 ) -> impl Fn(&Complex<f64>) -> Complex<f64> {
     let expected_value_jump = cgmy_expectation(c, 0.0, m, y) * eta_v;
-    println!("this is jump {}", expected_value_jump);
     move |u: &Complex<f64>| {
         (leverage_neutral_pure_jump_log_cf(
             &u,
@@ -239,7 +240,8 @@ pub fn cgmyse_time_change_cf(
     }
 }
 
-/// Returns log of time changed CGMY characteristic function with correlation between the diffusion of the time changed process and the underlying.
+/// Returns log of time changed CGMY characteristic function with correlation between the
+/// diffusion of the time changed process and the underlying.
 ///
 /// # Remarks
 /// The time change is assumed to be a CIR process with long run mean of 1.0.
