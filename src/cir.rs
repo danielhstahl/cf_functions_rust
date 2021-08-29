@@ -244,6 +244,8 @@ fn duffie_mgf_increment(
     l1: f64,
     cf: &dyn Fn(&Complex<f64>) -> Complex<f64>,
 ) -> (Complex<f64>, Complex<f64>) {
+    //note I can only use this because the self-exciting time change still returns a (complex valued) poisson distribution
+    //else I would need cf(u+beta*delta*i)-cf(u)
     let cf_part = cf(u) - 1.0;
     let beta = alpha_or_beta(rho1, k1, h1, l1);
     let alpha = alpha_or_beta(rho0, k0, h0, l0);
