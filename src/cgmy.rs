@@ -279,7 +279,7 @@ pub fn cgmyse_time_change_cf(
             v0,
             t,
             num_steps,
-        ) + rate * u)
+        ) + rate * u * t)
             .exp()
     }
 }
@@ -512,10 +512,31 @@ mod tests {
         let t = 1.0;
         let rate = 0.1;
         //let asset = 100.0;
-        let vol = cgmy_diffusion_vol(0.0, c, g, m, y, t);
-        let max_x = (10.0 * vol).exp();
+        //let vol = cgmy_diffusion_vol(0.0, c, g, m, y, t);
+        let max_x = 100.0;
         let cf_inst_se =
             cgmyse_time_change_cf(t, rate, c, g, m, y, sigma, v0, speed, eta_v, num_steps);
+        let discrete_cf = fang_oost::get_discrete_cf(num_u, 0.0, max_x, &cf_inst_se);
+        let expectation = cf_dist_utils::get_expectation_discrete_cf(0.0, max_x, &discrete_cf);
+        assert_abs_diff_eq!(expectation, (rate * t).exp(), epsilon = 0.00001);
+    }
+    #[test]
+    fn cgmy_option_price_expectation() {
+        let sigma = 1.0; //to be able to compare apples to apples
+        let c = 1.0;
+        let g = 5.0;
+        let m = 5.0;
+        let y = 1.5;
+        let speed = 0.3;
+        let v0 = 1.0;
+        let eta_v = 0.1;
+        let num_u: usize = 256;
+        let t = 1.0;
+        let rate = 0.1;
+        //let asset = 100.0;
+        //let vol = cgmy_diffusion_vol(0.0, c, g, m, y, t);
+        let max_x = 100.0;
+        let cf_inst_se = cgmy_time_change_cf(t, rate, c, g, m, y, sigma, v0, speed, eta_v, -0.3);
         let discrete_cf = fang_oost::get_discrete_cf(num_u, 0.0, max_x, &cf_inst_se);
         let expectation = cf_dist_utils::get_expectation_discrete_cf(0.0, max_x, &discrete_cf);
         assert_abs_diff_eq!(expectation, (rate * t).exp(), epsilon = 0.00001);
