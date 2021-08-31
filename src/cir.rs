@@ -253,6 +253,7 @@ fn duffie_mgf_increment(
 }
 
 //jump leverage...http://web.stanford.edu/~duffie/dps.pdf page 10
+//try to depricate
 pub fn generic_leverage_jump(
     u: &Complex<f64>,
     cf: &dyn Fn(&Complex<f64>) -> Complex<f64>,
@@ -296,6 +297,52 @@ pub fn generic_leverage_jump(
     beta * v0 + alpha
 }
 
+//http://web.stanford.edu/~duffie/dps.pdf page 10
+pub fn leverage_neutral_generic(
+    u: &Complex<f64>,
+    cf_jump: &impl Fn(&Complex<f64>) -> Complex<f64>, //
+    cf: &impl Fn(&Complex<f64>) -> Complex<f64>,
+    //expected_value_jump: f64,
+    r0: f64, //defined in Duffie et al
+    r1: f64,
+    k0: f64,
+    k1: f64,
+    //h1: f64, //
+    //l1: f64, incorporated in CF
+    v0: f64,
+    sigma0: f64, //constant multiplying BM part of asset,
+    sigma1: f64, //constant multiplying pure jump part of asset
+    rho: f64,    //correlation for BM part
+    eta0: f64,   //constant multiplying BM part of time-change process, the square of this is h1
+    eta1: f64,   //constant multiplying pure jump part of time-change process
+
+    t: f64,
+    num_steps: usize,
+) -> Complex<f64> {
+    let init_value_1 = Complex::new(0.0, 0.0);
+    let init_value_2 = Complex::new(0.0, 0.0);
+    let h1 = eta0.powi(2);
+    /*println!("this is sigma0 in lng {}", sigma0);
+    println!("this is sigma1 in lng {}", sigma1);
+    println!("this is k0 in lng {}", k0);
+    println!("this is k1 in lng {}", k1);
+    println!("this is h1 in lng {}", h1);
+    println!("this is eta1 in lng {}", eta1);*/
+    let fx = move |_t: f64, _alpha_prev: &Complex<f64>, beta_prev: &Complex<f64>| {
+        let u_sig = sigma1 * u;
+        let u_extended = beta_prev * eta1 + u_sig;
+        let k_extended = k1 + u * eta0 * rho * sigma0; //note that k1 is typically negative
+        let beta = cf_jump(&u_extended) - cf_jump(&u_sig) + k_extended * beta_prev - r1
+            + cf(u)
+            + beta_prev * beta_prev * h1 * 0.5;
+        let alpha = k0 * beta_prev - r0;
+        (alpha, beta)
+    };
+    let (alpha, beta) =
+        crate::cir::runge_kutta_complex_vector(&fx, init_value_1, init_value_2, t, num_steps);
+    beta * v0 + alpha
+}
+
 //From page 8 and 9 of my ops risk paper
 //https://github.com/danielhstahl/OpsRiskPaper/releases/download/0.1.0/main.pdf
 //The expectation is E[e^{lambda*(E[e^uiL]-1)\int v_s ds}]
@@ -308,7 +355,7 @@ pub fn generic_leverage_jump(
 //See equation 8 in my ops risk paper.
 pub fn cir_leverage_jump(
     u: &Complex<f64>,
-    cf: &dyn Fn(&Complex<f64>) -> Complex<f64>,
+    cf_jump: &impl Fn(&Complex<f64>) -> Complex<f64>,
     t: f64,
     v0: f64,
     correlation: f64,
@@ -319,6 +366,28 @@ pub fn cir_leverage_jump(
     num_steps: usize,
 ) -> Complex<f64> {
     let kappa = 1.0 + correlation / a; //to stay expectation of 1
+    let delta = correlation / (lambda * expected_value_of_cf);
+    let full_cf = |u: &Complex<f64>| lambda * (cf_jump(u) - 1.0);
+    let jump_cf_extended = |u: &Complex<f64>| lambda * cf_jump(u);
+    leverage_neutral_generic(
+        u,
+        &full_cf,
+        &jump_cf_extended,
+        0.0,
+        0.0,
+        a,
+        -a * kappa,
+        v0,
+        0.0,
+        1.0,
+        0.0,
+        sigma,
+        delta,
+        t,
+        num_steps,
+    )
+
+    /*
     generic_leverage_jump(
         u,
         cf,
@@ -335,7 +404,7 @@ pub fn cir_leverage_jump(
         0.0,
         lambda,
         num_steps,
-    )
+    )*/
 }
 
 #[cfg(test)]
@@ -406,6 +475,39 @@ mod tests {
         assert_abs_diff_eq!(result.re.exp(), bond_price, epsilon = 0.000001);
     }
     #[test]
+    fn duffie_mgf_compare_cir_new() {
+        let sigma = 0.3;
+        let a = 0.3;
+        let b = 0.05;
+        let r0 = 0.05;
+        let h = (a * a + 2.0 * sigma * sigma as f64).sqrt();
+        let t = 0.25;
+        let a_num = 2.0 * h * ((a + h) * t * 0.5).exp();
+        let a_den = 2.0 * h + (a + h) * ((t * h).exp() - 1.0);
+        let a_t_tm = (a_num / a_den).powf(2.0 * a * b / (sigma * sigma));
+        let b_num = 2.0 * ((t * h).exp() - 1.0);
+        let b_den = a_den;
+        let b_t_tm = b_num / b_den;
+        let bond_price = a_t_tm * ((-r0 * b_t_tm).exp());
+        let rho0 = 0.0;
+        let rho1 = 1.0;
+        let k0 = a * b;
+        let k1 = -a;
+        let h0 = 0.0;
+        let h1 = sigma * sigma;
+        let l0 = 0.0;
+        let l1 = 0.0;
+        let num_steps: usize = 1024;
+        let cf = |u: &Complex<f64>| Complex::new(0.0, 0.0);
+        let correlation = 0.0;
+        let expected_value_of_cf = 1.0; //doesnt matter
+        let u = Complex::new(1.0, 0.0);
+        let result = leverage_neutral_generic(
+            &u, &cf, &cf, rho0, rho1, k0, k1, r0, 0.0, 0.0, 0.0, sigma, 0.0, t, num_steps,
+        );
+        assert_abs_diff_eq!(result.re.exp(), bond_price, epsilon = 0.000001);
+    }
+    #[test]
     fn cir_analytical() {
         let sigma = 0.3;
         let a = 0.3;
@@ -452,5 +554,118 @@ mod tests {
         let cf_heston = (-b_t * v0 - c_t).exp().re;
         let approx_heston_cf = cir_mgf_cmp(&neg_psi, k, &k_star, sig, t, v0).re;
         assert_eq!(cf_heston, approx_heston_cf);
+    }
+
+    #[test]
+    fn leverage_jump() {
+        let u = Complex::new(0.5, 0.5);
+        let example_lambda = 0.5; //for jump distribution
+        let lambda = 0.6; //lambda for poisson
+        let cfjump = |u: &Complex<f64>| lambda * (example_lambda / (example_lambda - u));
+        let t = 0.5;
+        let v0 = 1.2;
+        let correlation = 0.5;
+        let expected_value_of_cf = 1.0 / example_lambda;
+        let a = 0.4;
+        let sigma = 0.3;
+        let num_steps: usize = 256;
+        let kappa = 1.0 + correlation / a; //to stay expectation of 1
+        let delta = correlation / (lambda * expected_value_of_cf);
+        let cf = |u: &Complex<f64>| cfjump(u) - lambda;
+        let result = leverage_neutral_generic(
+            &u,
+            &cfjump,
+            &cf,
+            0.0,
+            0.0,
+            a,
+            -a * kappa,
+            v0,
+            0.0,
+            1.0,
+            0.0,
+            sigma,
+            delta,
+            t,
+            num_steps,
+        ); /*
+           let result = cir_leverage_jump(
+               &u,
+               &cf,
+               t,
+               v0,
+               correlation,
+               expected_value_of_cf,
+               a,
+               sigma,
+               lambda,
+               num_steps,
+           );*/
+
+        // let cf1 = |u| example_lambda / (example_lambda - u);
+        let resultprev = generic_leverage_jump(
+            &u,
+            &cf,
+            t,
+            v0,
+            correlation,
+            expected_value_of_cf,
+            0.0,
+            0.0,
+            a,
+            -a * kappa,
+            0.0,
+            sigma.powi(2),
+            0.0,
+            lambda,
+            num_steps,
+        );
+        assert_eq!(result.re, resultprev.re);
+        assert_eq!(result.im, resultprev.im);
+    }
+    #[test]
+    fn test_heston_full_generic() {
+        //https://mpra.ub.uni-muenchen.de/8914/4/MPRA_paper_8914.pdf pg 15
+        let b: f64 = 0.0398;
+        let a = 1.5768;
+        let c = 0.5751;
+        let rho = -0.5711;
+        let v0 = 0.0175;
+
+        let sigma = b.sqrt();
+        let speed = a;
+        let eta_v = c;
+        let strikes = vec![100.0];
+        let num_u: usize = 256;
+        let t = 1.0;
+        let rate = 0.0;
+        let asset = 100.0;
+        let max_strike = (10.0 * sigma).exp() * asset;
+        let num_steps: usize = 256;
+        let cf_inst = |u: &Complex<f64>| {
+            (leverage_neutral_generic(
+                &u,
+                &|_u: &Complex<f64>| Complex::new(0.0, 0.0),
+                &|u| crate::gauss::gauss_log_cf(u, -0.5 * sigma * sigma, sigma),
+                0.0,
+                0.0,
+                speed,
+                -speed,
+                v0 / b,
+                sigma,
+                0.0,
+                rho,
+                eta_v / sigma,
+                0.0,
+                t,
+                num_steps,
+            ) + rate * u * t)
+                .exp()
+        };
+
+        let results = fang_oost_option::option_pricing::fang_oost_call_price(
+            num_u, asset, &strikes, max_strike, rate, t, &cf_inst,
+        );
+        assert_abs_diff_eq!(results[0], 5.78515545, epsilon = 0.0001);
     }
 }

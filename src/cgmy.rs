@@ -143,7 +143,8 @@ pub fn cgmy_time_change_log_cf(
 //solving, khat=k-E[dJ]*eta_v
 //khat*theta=k
 //so theta=k/khat
-fn leverage_neutral_pure_jump_log_cf(
+//try to depricate
+fn depreciate_leverage_neutral_pure_jump_log_cf(
     u: &Complex<f64>,
     cf_negative: &dyn Fn(&Complex<f64>) -> Complex<f64>, //
     cf: &dyn Fn(&Complex<f64>) -> Complex<f64>,
@@ -164,6 +165,11 @@ fn leverage_neutral_pure_jump_log_cf(
     } else {
         speed / khat
     };
+    println!("this is sigma in dlnpjlcf {}", sigma);
+    println!("this is eta_v in dlnpjlcf {}", eta_v);
+    println!("this is khat in dlnpjlcf {}", khat);
+    println!("this is khat*theta in dlnpjlcf {}", khat * theta);
+    //println!("this is h1 in dlnpjlcf {}", h1);
     let fx = move |_t: f64, _alpha_prev: &Complex<f64>, beta_prev: &Complex<f64>| {
         let u_sig = sigma * u;
         let u_extended = beta_prev * Complex::new(0.0, 1.0) * eta_v + u_sig;
@@ -174,6 +180,44 @@ fn leverage_neutral_pure_jump_log_cf(
     let (alpha, beta) =
         crate::cir::runge_kutta_complex_vector(&fx, init_value_1, init_value_2, t, num_steps);
     beta * v0 + alpha
+}
+
+fn leverage_neutral_pure_jump_log_cf(
+    u: &Complex<f64>,
+    cf_negative: &dyn Fn(&Complex<f64>) -> Complex<f64>, //
+    cf: &dyn Fn(&Complex<f64>) -> Complex<f64>,
+    expected_value_jump: f64, //negative only
+    speed: f64,               //"k"
+    eta_v: f64,
+    sigma: f64,
+    v0: f64,
+    t: f64,
+    num_steps: usize,
+) -> Complex<f64> {
+    let khat = speed - eta_v * expected_value_jump; //get expectation equal to one
+
+    let theta = if crate::utils::is_same(khat, 0.0) {
+        0.0
+    } else {
+        speed / khat
+    };
+    crate::cir::leverage_neutral_generic(
+        &u,
+        &cf_negative,
+        &cf,
+        0.0,
+        0.0,
+        khat * theta,
+        -khat,
+        v0,
+        0.0,
+        sigma,
+        0.0,
+        0.0,
+        eta_v,
+        t,
+        num_steps,
+    )
 }
 
 /// /// Returns time changed (self-exciting) CGMY characteristic function with
@@ -449,8 +493,32 @@ mod tests {
         let results = fang_oost_option::option_pricing::fang_oost_call_price(
             num_u, asset, &strikes, max_strike, rate, t, &cf_inst,
         );
+        println!("this is results {}", results_se[0]);
         //negative correlation leads to lower call prices
         assert_eq!(results_se[0] < results[0], true);
+    }
+    #[test]
+    fn cgmyse_option_price_expectation() {
+        let sigma = 1.0; //to be able to compare apples to apples
+        let c = 1.0;
+        let g = 5.0;
+        let m = 5.0;
+        let y = 1.5;
+        let speed = 0.3;
+        let v0 = 1.0;
+        let eta_v = 0.1;
+        let num_u: usize = 256;
+        let num_steps: usize = 256;
+        let t = 1.0;
+        let rate = 0.1;
+        //let asset = 100.0;
+        let vol = cgmy_diffusion_vol(0.0, c, g, m, y, t);
+        let max_x = (10.0 * vol).exp();
+        let cf_inst_se =
+            cgmyse_time_change_cf(t, rate, c, g, m, y, sigma, v0, speed, eta_v, num_steps);
+        let discrete_cf = fang_oost::get_discrete_cf(num_u, 0.0, max_x, &cf_inst_se);
+        let expectation = cf_dist_utils::get_expectation_discrete_cf(0.0, max_x, &discrete_cf);
+        assert_abs_diff_eq!(expectation, (rate * t).exp(), epsilon = 0.00001);
     }
     #[test]
     fn cgmy_option_price_test() {
