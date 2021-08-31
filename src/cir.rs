@@ -167,9 +167,39 @@ pub fn cir_mgf_cmp(
     cir_log_mgf_cmp(psi, a, kappa, sigma, t, v0).exp()
 }
 
+/// Returns log CF of time-changed diffusion
+/// where the time-change is governed by a
+/// Cox Ingersoll Ross process
+///
+/// # Remarks
+/// get_cf is the (convexity adjusted) log characteristic function of the underlying diffusion.
+/// The CIR process has long run average of 1, requiring the volatility level to be controlled
+/// at the underlying diffusion.  For Heston, this means using sigma sqrt(v_cir) dW_t rather than
+/// simply sqrt(v) dW_t.
+///
+/// # Examples
+///
+/// ```
+/// extern crate num_complex;
+/// use num_complex::Complex;
+/// extern crate cf_functions;
+/// # fn main() {
+/// let u = Complex::new(1.0, 1.0);
+/// let a = 0.3; //speed of mean reversion of CIR process
+/// let sigma = 0.3; //volatility of underlying diffusion
+/// let t = 0.5; //time period of CIR process
+/// let v0 = 0.7; //initial value of CIR process
+/// let eta_v = 0.3; // vol of vol
+/// let rho = -0.6; // correlation between CIR BM and underlying diffusion
+/// let get_cf=|u: &Complex<f64>| crate::gauss::gauss_log_cf(u, -0.5 * sigma*sigma, sigma),
+/// let cf = cf_functions::cir::generic_leverage_diffusion(
+///     &u, &get_cf, t, sigma, v0, speed, eta_v, rho
+/// );
+/// # }
+/// ```
 pub fn generic_leverage_diffusion(
     u: &Complex<f64>,
-    get_cf: &dyn Fn(&Complex<f64>) -> Complex<f64>,
+    get_cf: &impl Fn(&Complex<f64>) -> Complex<f64>,
     t: f64,
     sigma: f64,
     v0: f64,
@@ -183,7 +213,27 @@ pub fn generic_leverage_diffusion(
     cir_log_mgf_cmp(&cf_fn_rn, speed, &ln_m, eta_v, t, v0)
 }
 
-//needed to solve ODE for duffie MGF
+/// Solves Duffie's MGF when analytical solution (eg CIR) is not available
+///
+/// # Examples
+///
+/// ```
+/// extern crate num_complex;
+/// use num_complex::Complex;
+/// # fn main() {
+/// let t = 2.0;
+/// let num_steps = 1024;
+/// let init_value_1 = Complex::new(1.0, 0.0);
+/// let init_value_2 = Complex::new(1.0, 0.0);
+/// let (res1, res2) = runge_kutta_complex_vector(
+///     &|t: f64, val1: &Complex<f64>, val2: &Complex<f64>| (val1 * t, val2 * t),
+///     init_value_1,
+///     init_value_2,
+///     t,
+///     num_steps,
+///);
+/// # }
+/// ```
 pub fn runge_kutta_complex_vector(
     fx: &dyn Fn(f64, &Complex<f64>, &Complex<f64>) -> (Complex<f64>, Complex<f64>),
     mut init_value_1: Complex<f64>,
@@ -245,7 +295,7 @@ fn duffie_mgf_increment(
     cf: &dyn Fn(&Complex<f64>) -> Complex<f64>,
 ) -> (Complex<f64>, Complex<f64>) {
     //note I can only use this because the self-exciting time change still returns a (complex valued) poisson distribution
-    //else I would need cf(u+beta*delta*i)-cf(u)
+    //else I would need cfjump(u+beta*delta)-cfjump(u)+cf(u)
     let cf_part = cf(u) - 1.0;
     let beta = alpha_or_beta(rho1, k1, h1, l1);
     let alpha = alpha_or_beta(rho0, k0, h0, l0);
@@ -298,9 +348,11 @@ pub fn generic_leverage_jump(
 }
 
 //http://web.stanford.edu/~duffie/dps.pdf page 10
+//https://poseidon01.ssrn.com/delivery.php?ID=737027111000006077113070089110095064016020050037028066000080065074127006086092092026061120060015055036110006010126103066122080108059078076004070004065091125021108014077028121011029092117112080127092065007111098070065099086069122086067104098093017117&EXT=pdf&INDEX=TRUE
+// page 11.
 pub fn leverage_neutral_generic(
     u: &Complex<f64>,
-    cf_jump: &impl Fn(&Complex<f64>) -> Complex<f64>, //
+    cf_jump: &impl Fn(&Complex<f64>) -> Complex<f64>, //includes lambda v(dx)
     cf: &impl Fn(&Complex<f64>) -> Complex<f64>,
     //expected_value_jump: f64,
     r0: f64, //defined in Duffie et al
@@ -343,19 +395,21 @@ pub fn leverage_neutral_generic(
     beta * v0 + alpha
 }
 
-//From page 8 and 9 of my ops risk paper
-//https://github.com/danielhstahl/OpsRiskPaper/releases/download/0.1.0/main.pdf
-//The expectation is E[e^{lambda*(E[e^uiL]-1)\int v_s ds}]
-//Using the duffie ODE formula, rho0=0, rho1=lambda*(1-E[e^uiL]),
-//k0=a, k1=-a*kappahat (where kappahat=1+correlation/a
-//and and correlation=delta*E[L]*lambda), h0=0,
-//h1=sigma*sigma, l0=0, l1=lambda.  However, this can be
-//simplified so that rho1=0 by adjusting the cf of the
-//jump to have (u-i*delta*beta) instead of just u.
-//See equation 8 in my ops risk paper.
+/// From page 8 and 9 of my ops risk paper
+/// https://github.com/danielhstahl/OpsRiskPaper/releases/download/0.2.0/main.pdf
+/// The expectation is E[e^{lambda*(E[e^uiL]-1)\int v_s ds}]
+/// Using the duffie ODE formula, rho0=0, rho1=lambda*(1-E[e^uiL]),
+/// k0=a, k1=-a*kappahat (where kappahat=1+correlation/a
+/// and and correlation=delta*E[L]*lambda), h0=0,
+/// h1=sigma*sigma, l0=0, l1=lambda.  In previous
+/// versions of this code base I had simplified so that rho1=0
+/// by adjusting the cf of the jump to have (u-i*delta*beta) instead of just u.
+/// I switched to the more generic "cf_jump" and "cf_jump_extended"
+/// to accommodate more complicated jump processes such as CGMY
+/// See equation 8 in my ops risk paper.
 pub fn cir_leverage_jump(
     u: &Complex<f64>,
-    cf_jump: &impl Fn(&Complex<f64>) -> Complex<f64>,
+    cf_jump: &impl Fn(&Complex<f64>) -> Complex<f64>, //only jump CF, no poisson "lambda"
     t: f64,
     v0: f64,
     correlation: f64,
@@ -371,8 +425,8 @@ pub fn cir_leverage_jump(
     let jump_cf_extended = |u: &Complex<f64>| lambda * cf_jump(u);
     leverage_neutral_generic(
         u,
-        &full_cf,
         &jump_cf_extended,
+        &full_cf,
         0.0,
         0.0,
         a,
@@ -493,14 +547,10 @@ mod tests {
         let rho1 = 1.0;
         let k0 = a * b;
         let k1 = -a;
-        let h0 = 0.0;
-        let h1 = sigma * sigma;
-        let l0 = 0.0;
-        let l1 = 0.0;
         let num_steps: usize = 1024;
-        let cf = |u: &Complex<f64>| Complex::new(0.0, 0.0);
-        let correlation = 0.0;
-        let expected_value_of_cf = 1.0; //doesnt matter
+        let cf = |_u: &Complex<f64>| Complex::new(0.0, 0.0);
+        //let correlation = 0.0;
+        //let expected_value_of_cf = 1.0; //doesnt matter
         let u = Complex::new(1.0, 0.0);
         let result = leverage_neutral_generic(
             &u, &cf, &cf, rho0, rho1, k0, k1, r0, 0.0, 0.0, 0.0, sigma, 0.0, t, num_steps,
@@ -557,11 +607,24 @@ mod tests {
     }
 
     #[test]
-    fn leverage_jump() {
+    fn new_cf_adjust_compare() {
         let u = Complex::new(0.5, 0.5);
         let example_lambda = 0.5; //for jump distribution
         let lambda = 0.6; //lambda for poisson
         let cfjump = |u: &Complex<f64>| lambda * (example_lambda / (example_lambda - u));
+        let beta_prev = Complex::new(0.2, -0.3);
+        let eta1 = 0.3;
+        let cf = |u: &Complex<f64>| cfjump(u) - lambda;
+        let new_result = cfjump(&(u + beta_prev * eta1)) - cfjump(&u) + cf(&u);
+        let old_result = cf(&(u + beta_prev * eta1));
+        assert_eq!(new_result, old_result);
+    }
+    #[test]
+    fn leverage_jump() {
+        let u = Complex::new(0.5, 0.5);
+        let example_lambda = 0.5; //for jump distribution
+        let lambda = 0.6; //lambda for poisson
+        let cfjump = |u: &Complex<f64>| example_lambda / (example_lambda - u);
         let t = 0.5;
         let v0 = 1.2;
         let correlation = 0.5;
@@ -569,13 +632,29 @@ mod tests {
         let a = 0.4;
         let sigma = 0.3;
         let num_steps: usize = 256;
-        let kappa = 1.0 + correlation / a; //to stay expectation of 1
-        let delta = correlation / (lambda * expected_value_of_cf);
-        let cf = |u: &Complex<f64>| cfjump(u) - lambda;
-        let result = leverage_neutral_generic(
+        //to stay expectation of 1
+        //let delta = correlation / (lambda * expected_value_of_cf);
+        /*let cf_old = |u: &Complex<f64>| cfjump(u) - 1.0;
+        let cf_new = |u: &Complex<f64>| lambda * cf_old(u);
+        let cf_jump_new = |u: &Complex<f64>| lambda * cfjump(u);*/
+
+        let result = cir_leverage_jump(
             &u,
             &cfjump,
-            &cf,
+            t,
+            v0,
+            correlation,
+            expected_value_of_cf,
+            a,
+            sigma,
+            lambda,
+            num_steps,
+        );
+        /*
+        let result = leverage_neutral_generic(
+            &u,
+            &cf_jump_new,
+            &cf_new,
             0.0,
             0.0,
             a,
@@ -588,24 +667,26 @@ mod tests {
             delta,
             t,
             num_steps,
-        ); /*
-           let result = cir_leverage_jump(
-               &u,
-               &cf,
-               t,
-               v0,
-               correlation,
-               expected_value_of_cf,
-               a,
-               sigma,
-               lambda,
-               num_steps,
-           );*/
-
-        // let cf1 = |u| example_lambda / (example_lambda - u);
-        let resultprev = generic_leverage_jump(
+        );*/
+        /*
+        let result = cir_leverage_jump(
             &u,
             &cf,
+            t,
+            v0,
+            correlation,
+            expected_value_of_cf,
+            a,
+            sigma,
+            lambda,
+            num_steps,
+        );*/
+
+        // let cf1 = |u| example_lambda / (example_lambda - u);
+        let kappa = 1.0 + correlation / a;
+        let resultprev = generic_leverage_jump(
+            &u,
+            &cfjump,
             t,
             v0,
             correlation,
@@ -620,8 +701,7 @@ mod tests {
             lambda,
             num_steps,
         );
-        assert_eq!(result.re, resultprev.re);
-        assert_eq!(result.im, resultprev.im);
+        assert_eq!(result, resultprev);
     }
     #[test]
     fn test_heston_full_generic() {
