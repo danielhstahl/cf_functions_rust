@@ -447,8 +447,6 @@ mod tests {
         let results = fang_oost_option::option_pricing::fang_oost_call_price(
             num_u, asset, &strikes, max_strike, rate, t, &cf_inst,
         );
-        println!("this is resultsse {}", results_se[0]);
-        println!("this is results {}", results[0]);
         //negative correlation leads to lower call prices
         assert_eq!(results_se[0] < results[0], true);
     }
@@ -475,7 +473,6 @@ mod tests {
         let expected_value = cf_dist_utils::get_pdf(num_x, num_u, min_x, max_x, &cf_inst_se)
             .map(|fang_oost::GraphElement { x, value }| value * x.exp() * dx)
             .sum();
-        println!("this is expect {}", expected_value);
         assert_abs_diff_eq!(expected_value, (rate * t).exp(), epsilon = 0.00001);
     }
     #[test]
@@ -501,7 +498,6 @@ mod tests {
         let expected_value = cf_dist_utils::get_pdf(num_x, num_u, min_x, max_x, &cf_inst_se)
             .map(|fang_oost::GraphElement { x, value }| value * x.exp() * dx)
             .sum();
-        println!("this is expect {}", expected_value);
         assert_abs_diff_eq!(expected_value, (rate * t).exp(), epsilon = 0.00001);
     }
     #[test]
