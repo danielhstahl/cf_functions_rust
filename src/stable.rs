@@ -40,35 +40,6 @@ pub fn stable_cf(u: &Complex<f64>, alpha: f64, mu: f64, beta: f64, c: f64) -> Co
 
 const BETA_STABLE: f64 = 1.0; //to stay on the positive reals
 
-//for stable distribution
-fn alpha_stable_log(
-    u: &Complex<f64>,
-    t: f64,
-    v0: f64,
-    a: f64,
-    sigma: f64,
-    lambda: f64,
-    correlation: f64,
-    alpha: f64,
-    mu: f64,
-    c: f64,
-    phi: f64,
-    num_steps: usize,
-) -> Complex<f64> {
-    crate::cir::cir_leverage_jump(
-        u,
-        &|u| stable_cf_memoize(u, alpha, mu, BETA_STABLE, c, phi),
-        t,
-        v0,
-        correlation,
-        mu,
-        a,
-        sigma,
-        lambda,
-        num_steps,
-    )
-}
-
 /// Returns log CF of an alpha stable process when transformed by an affine process
 /// and the process is correlated with the jump component of the Levy process.
 ///
@@ -118,21 +89,17 @@ pub fn alpha_stable_leverage(
     num_steps: usize,
 ) -> impl Fn(&Complex<f64>) -> Complex<f64> {
     let phi = compute_stable_phi(alpha);
-    move |u| {
-        alpha_stable_log(
-            u,
-            t,
-            v0,
-            a,
-            sigma,
-            lambda,
-            correlation,
-            alpha,
-            mu,
-            c,
-            phi,
-            num_steps,
-        )
-        .exp()
-    }
+
+    let leverage_cf = crate::affine_process::cir_leverage_jump(
+        move |u| stable_cf_memoize(u, alpha, mu, BETA_STABLE, c, phi),
+        t,
+        v0,
+        correlation,
+        mu,
+        a,
+        sigma,
+        lambda,
+        num_steps,
+    );
+    move |u: &Complex<f64>| leverage_cf(&u).exp()
 }

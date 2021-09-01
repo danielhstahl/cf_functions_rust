@@ -94,7 +94,7 @@ pub fn heston_log_cf(
     rho: f64,
 ) -> Complex<f64> {
     let sigma_sq = sigma.powi(2);
-    crate::cir::generic_leverage_diffusion(
+    crate::affine_process::generic_leverage_diffusion(
         u,
         &|u| gauss_log_cf(u, -0.5 * sigma_sq, sigma),
         t,
@@ -148,6 +148,7 @@ pub fn heston_cf(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use approx::*;
     #[test]
     fn cir_heston_2() {
         let t = 0.25;
@@ -169,5 +170,61 @@ mod tests {
         let approx_heston_cf =
             heston_cf(t, 0.0, sig_tot, v0 * sig_tot.powi(2), k, sig * sig_tot, rho)(&u).re;
         assert_eq!(cf_heston, approx_heston_cf);
+    }
+    #[test]
+    fn test_heston() {
+        //https://mpra.ub.uni-muenchen.de/8914/4/MPRA_paper_8914.pdf pg 15
+        let b: f64 = 0.0398;
+        let a = 1.5768;
+        let c = 0.5751;
+        let rho = -0.5711;
+        let v0 = 0.0175;
+
+        let sigma = b.sqrt();
+        let speed = a;
+        let eta_v = c;
+        let strikes = vec![100.0];
+        let num_u: usize = 256;
+        let t = 1.0;
+        let rate = 0.0;
+        let asset = 100.0;
+        let max_strike = (10.0 * sigma).exp() * asset;
+        let cf_inst = heston_cf(t, rate, sigma, v0, speed, eta_v, rho);
+        let results = fang_oost_option::option_pricing::fang_oost_call_price(
+            num_u, asset, &strikes, max_strike, rate, t, &cf_inst,
+        );
+        assert_abs_diff_eq!(results[0], 5.78515545, epsilon = 0.0001);
+    }
+    #[test]
+    fn test_heston_more_negative_corr() {
+        let b: f64 = 0.0398;
+        let a = 1.5768;
+        let c = 0.5751;
+        let rho = -0.5711;
+        let v0 = 0.0175;
+        let sigma = b.sqrt();
+        let speed = a;
+        let eta_v = c;
+        let strikes = vec![100.0];
+        let num_u: usize = 256;
+        let t = 1.0;
+        let rate = 0.0;
+        let asset = 100.0;
+        let max_strike = (10.0 * sigma).exp() * asset;
+        let cf_inst = heston_cf(t, rate, sigma, v0, speed, eta_v, rho);
+        let cf_inst_less_corr = heston_cf(t, rate, sigma, v0, speed, eta_v, rho * 0.5);
+        let results_less_corr = fang_oost_option::option_pricing::fang_oost_call_price(
+            num_u,
+            asset,
+            &strikes,
+            max_strike,
+            rate,
+            t,
+            &cf_inst_less_corr,
+        );
+        let results = fang_oost_option::option_pricing::fang_oost_call_price(
+            num_u, asset, &strikes, max_strike, rate, t, &cf_inst,
+        );
+        assert_eq!(results[0] < results_less_corr[0], true);
     }
 }

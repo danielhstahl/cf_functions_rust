@@ -8,7 +8,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - name: Run tests stable
       run: cargo test 
     - name: Benchmarks
@@ -22,7 +22,7 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - uses: hecrj/setup-rust-action@master
       with:
         rust-version: stable
@@ -34,5 +34,4 @@ jobs:
       run: cargo doc
     - name: Publish
       run: |
-        cargo bench
         cargo publish --token ${{ secrets.CARGO_TOKEN }} --allow-dirty || true

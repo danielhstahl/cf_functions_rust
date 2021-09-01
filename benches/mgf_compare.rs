@@ -17,7 +17,15 @@ fn bench_mgf(c: &mut Criterion) {
                     let b = 0.05;
                     let r0 = 0.05;
                     let t = 0.25;
-                    cf_functions::cir::cir_mgf(&Complex::new(1.0, 0.0), a * b, a, sigma, t, r0).re
+                    cf_functions::affine_process::cir_mgf(
+                        &Complex::new(1.0, 0.0),
+                        a * b,
+                        a,
+                        sigma,
+                        t,
+                        r0,
+                    )
+                    .re
                 });
             },
             vec![128, 256, 512, 1024],
@@ -33,29 +41,29 @@ fn bench_mgf(c: &mut Criterion) {
                 let rho1 = 1.0;
                 let k0 = a * b;
                 let k1 = -a;
-                let h0 = 0.0;
-                let h1 = sigma * sigma;
-                let l0 = 0.0;
-                let l1 = 0.0;
+                //let h0 = 0.0;
+                //let h1 = sigma * sigma;
+                //let l0 = 0.0;
+                //let l1 = 0.0;
                 let cf = |u: &Complex<f64>| u.exp();
                 let correlation = 0.0;
-                let expected_value_of_cf = 1.0; //doesnt matter
+                //let expected_value_of_cf = 1.0; //doesnt matter
                 let u = Complex::new(1.0, 0.0);
-                cf_functions::cir::generic_leverage_jump(
+                cf_functions::affine_process::leverage_neutral_generic(
                     &u,
                     &cf,
-                    t,
-                    r0,
-                    correlation,
-                    expected_value_of_cf,
+                    &cf,
                     rho0,
                     rho1,
                     k0,
                     k1,
-                    h0,
-                    h1,
-                    l0,
-                    l1,
+                    r0,
+                    0.0,
+                    1.0,
+                    correlation,
+                    sigma,
+                    0.0,
+                    t,
                     *i,
                 )
                 .re
