@@ -1,5 +1,4 @@
 use num_complex::Complex;
-use rayon::iter::IndexedParallelIterator;
 use special::Gamma;
 /// Returns log of CGMY characteristic function
 ///
@@ -124,7 +123,7 @@ pub fn cgmy_time_change_log_cf(
     eta_v: f64,
     rho: f64,
 ) -> Complex<f64> {
-    crate::cir::generic_leverage_diffusion(
+    crate::affine_process::generic_leverage_diffusion(
         u,
         &|u| cgmy_log_risk_neutral_cf(u, c, g, m, y, 0.0, sigma),
         t,
@@ -155,7 +154,7 @@ fn leverage_neutral_pure_jump_log_cf(
     } else {
         speed / khat
     };
-    crate::cir::leverage_neutral_generic(
+    crate::affine_process::leverage_neutral_generic(
         &u,
         &cf_negative,
         &cf,
@@ -310,6 +309,7 @@ pub fn cgmy_diffusion_vol(sigma: f64, c: f64, g: f64, m: f64, y: f64, maturity: 
 mod tests {
     use super::*;
     use approx::*;
+    use rayon::prelude::*;
     fn test_exp_cf(u: &Complex<f64>, lambda: f64) -> Complex<f64> {
         lambda / (lambda - u)
     }
@@ -470,20 +470,38 @@ mod tests {
         let min_x = -5.0;
         let cf_inst_se =
             cgmyse_time_change_cf(t, rate, c, g, m, y, sigma, v0, speed, eta_v, num_steps);
-        let discrete_cf = fang_oost::get_discrete_cf(num_u, 0.0, max_x, &cf_inst_se);
-        //let expectation = cf_dist_utils::get_expectation_discrete_cf(0.0, max_x, &discrete_cf);
-        //let density = cf_dist_utils::get_cdf(20, num_u, 0.0, max_x, &cf_inst_se);
         let num_x = 1024;
-        //let x_domain = fang_oost::get_x_domain(1024, min_x, max_x);
-        let dx = (max_x - min_x) / (num_x - 1.0);
+        let dx = (max_x - min_x) / (num_x as f64 - 1.0);
         let expected_value = cf_dist_utils::get_pdf(num_x, num_u, min_x, max_x, &cf_inst_se)
-            .iter()
             .map(|fang_oost::GraphElement { x, value }| value * x.exp() * dx)
             .sum();
-        /*for element in density {
-            println!("this is cdf {}", element);
-        }*/
-        println!("this is expect {}", density);
+        println!("this is expect {}", expected_value);
+        assert_abs_diff_eq!(expected_value, (rate * t).exp(), epsilon = 0.00001);
+    }
+    #[test]
+    fn cgmyse_option_price_expectation_v0_not_1() {
+        let sigma = 0.5;
+        let c = 0.3;
+        let g = 5.0;
+        let m = 5.0;
+        let y = 1.5;
+        let speed = 0.3;
+        let v0 = 0.9;
+        let eta_v = 0.1;
+        let num_u: usize = 256;
+        let num_steps: usize = 256;
+        let t = 1.2;
+        let rate = 0.1;
+        let max_x = 5.0;
+        let min_x = -5.0;
+        let cf_inst_se =
+            cgmyse_time_change_cf(t, rate, c, g, m, y, sigma, v0, speed, eta_v, num_steps);
+        let num_x = 1024;
+        let dx = (max_x - min_x) / (num_x as f64 - 1.0);
+        let expected_value = cf_dist_utils::get_pdf(num_x, num_u, min_x, max_x, &cf_inst_se)
+            .map(|fang_oost::GraphElement { x, value }| value * x.exp() * dx)
+            .sum();
+        println!("this is expect {}", expected_value);
         assert_abs_diff_eq!(expected_value, (rate * t).exp(), epsilon = 0.00001);
     }
     #[test]
@@ -499,18 +517,37 @@ mod tests {
         let num_u: usize = 256;
         let t = 1.2;
         let rate = 0.1;
-        let max_x = 20.0;
-        let cf_inst =
-            |u: &Complex<f64>| (cgmy_log_risk_neutral_cf(u, c, g, m, y, rate, sigma) * t).exp();
-        //let cf_inst = cgmy_time_change_cf(t, rate, c, g, m, y, sigma, v0, speed, eta_v, -0.3);
-        let discrete_cf = fang_oost::get_discrete_cf(num_u, 0.0, max_x, &cf_inst);
+        let max_x = 5.0;
+        let min_x = -5.0;
+        let cf_inst = cgmy_time_change_cf(t, rate, c, g, m, y, sigma, v0, speed, eta_v, -0.3);
         let num_x = 1024;
-        let dx = (max_x - min_x) / (num_x - 1.0);
+        let dx = (max_x - min_x) / (num_x as f64 - 1.0);
         let expected_value = cf_dist_utils::get_pdf(num_x, num_u, min_x, max_x, &cf_inst)
-            .iter()
             .map(|fang_oost::GraphElement { x, value }| value * x.exp() * dx)
             .sum();
-        //let expectation = cf_dist_utils::get_expectation_discrete_cf(0.0, max_x, &discrete_cf);
+        assert_abs_diff_eq!(expected_value, (rate * t).exp(), epsilon = 0.00001);
+    }
+    #[test]
+    fn cgmy_option_price_expectation_v0_not_1() {
+        let sigma = 0.2;
+        let c = 0.3;
+        let g = 5.0;
+        let m = 5.0;
+        let y = 1.5;
+        let speed = 0.3;
+        let v0 = 0.9;
+        let eta_v = 0.1;
+        let num_u: usize = 256;
+        let t = 1.2;
+        let rate = 0.1;
+        let max_x = 5.0;
+        let min_x = -5.0;
+        let cf_inst = cgmy_time_change_cf(t, rate, c, g, m, y, sigma, v0, speed, eta_v, -0.3);
+        let num_x = 1024;
+        let dx = (max_x - min_x) / (num_x as f64 - 1.0);
+        let expected_value = cf_dist_utils::get_pdf(num_x, num_u, min_x, max_x, &cf_inst)
+            .map(|fang_oost::GraphElement { x, value }| value * x.exp() * dx)
+            .sum();
         assert_abs_diff_eq!(expected_value, (rate * t).exp(), epsilon = 0.00001);
     }
     #[test]

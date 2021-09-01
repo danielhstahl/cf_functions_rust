@@ -16,8 +16,9 @@ special = "0.7"
 approx = "0.2.0"
 cf_dist_utils = "0.10"
 criterion = "0.2"
-fang_oost = "0.50"
+fang_oost = "^0.15.1"
 fang_oost_option = "0.31"
+rayon = "1.0.1"
 
 [[bench]]
 harness = false

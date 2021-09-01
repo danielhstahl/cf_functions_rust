@@ -18,7 +18,7 @@ use num_complex::Complex;
 /// let sigma = 0.3; //volatility of CIR process
 /// let t = 0.5; //time period of CIR process
 /// let v0 = 0.7; //initial value of CIR process
-/// let log_mgf = cf_functions::cir::cir_log_mgf(
+/// let log_mgf = cf_functions::affine_process::cir_log_mgf(
 ///     &u, a, kappa, sigma, t, v0
 /// );
 /// # }
@@ -68,7 +68,7 @@ pub fn cir_log_mgf(
 /// let sigma = 0.3; //volatility of CIR process
 /// let t = 0.5; //time period of CIR process
 /// let v0 = 0.7; //initial value of CIR process
-/// let log_mgf = cf_functions::cir::cir_log_mgf_cmp(
+/// let log_mgf = cf_functions::affine_process::cir_log_mgf_cmp(
 ///     &u, a, &kappa, sigma, t, v0
 /// );
 /// # }
@@ -116,7 +116,7 @@ pub fn cir_log_mgf_cmp(
 /// let sigma = 0.3; //volatility of CIR process
 /// let t = 0.5; //time period of CIR process
 /// let v0 = 0.7; //initial value of CIR process
-/// let mgf = cf_functions::cir::cir_mgf(
+/// let mgf = cf_functions::affine_process::cir_mgf(
 ///     &u, a, kappa, sigma, t, v0
 /// );
 /// # }
@@ -151,7 +151,7 @@ pub fn cir_mgf(
 /// let sigma = 0.3; //volatility of CIR process
 /// let t = 0.5; //time period of CIR process
 /// let v0 = 0.7; //initial value of CIR process
-/// let mgf = cf_functions::cir::cir_mgf_cmp(
+/// let mgf = cf_functions::affine_process::cir_mgf_cmp(
 ///     &u, a, &kappa, sigma, t, v0
 /// );
 /// # }
@@ -191,9 +191,9 @@ pub fn cir_mgf_cmp(
 /// let v0 = 0.7; //initial value of CIR process
 /// let eta_v = 0.3; // vol of vol
 /// let rho = -0.6; // correlation between CIR BM and underlying diffusion
-/// let get_cf=|u: &Complex<f64>| crate::gauss::gauss_log_cf(u, -0.5 * sigma*sigma, sigma),
-/// let cf = cf_functions::cir::generic_leverage_diffusion(
-///     &u, &get_cf, t, sigma, v0, speed, eta_v, rho
+/// let get_cf=|u: &Complex<f64>| cf_functions::gauss::gauss_log_cf(u, -0.5 * sigma*sigma, sigma);
+/// let cf = cf_functions::affine_process::generic_leverage_diffusion(
+///     &u, &get_cf, t, sigma, v0, a, eta_v, rho
 /// );
 /// # }
 /// ```
@@ -225,7 +225,7 @@ pub fn generic_leverage_diffusion(
 /// let num_steps = 1024;
 /// let init_value_1 = Complex::new(1.0, 0.0);
 /// let init_value_2 = Complex::new(1.0, 0.0);
-/// let (res1, res2) = runge_kutta_complex_vector(
+/// let (res1, res2) = cf_functions::affine_process::runge_kutta_complex_vector(
 ///     &|t: f64, val1: &Complex<f64>, val2: &Complex<f64>| (val1 * t, val2 * t),
 ///     init_value_1,
 ///     init_value_2,
@@ -268,106 +268,24 @@ pub fn runge_kutta_complex_vector(
     (init_value_1, init_value_2)
 }
 
-//helper for ODE, http://web.stanford.edu/~duffie/dps.pdf
-//since with respect to T-t, this is the opposite sign as the paper
-pub fn alpha_or_beta(
-    rho: f64,
-    k: f64,
-    h: f64,
-    l: f64,
-) -> impl (Fn(&Complex<f64>, &Complex<f64>) -> Complex<f64>) {
-    move |ode_val: &Complex<f64>, cf_val: &Complex<f64>| {
-        -rho + k * ode_val + 0.5 * ode_val * ode_val * h + l * cf_val
-    }
-}
-
-fn duffie_mgf_increment(
-    u: &Complex<f64>,
-    ode_val_2: &Complex<f64>,
-    rho0: f64,
-    rho1: f64,
-    k0: f64,
-    k1: f64,
-    h0: f64,
-    h1: f64,
-    l0: f64,
-    l1: f64,
-    cf: &dyn Fn(&Complex<f64>) -> Complex<f64>,
-) -> (Complex<f64>, Complex<f64>) {
-    //note I can only use this because the self-exciting time change still returns a (complex valued) poisson distribution
-    //else I would need cfjump(u+beta*delta)-cfjump(u)+cf(u)
-    let cf_part = cf(u) - 1.0;
-    let beta = alpha_or_beta(rho1, k1, h1, l1);
-    let alpha = alpha_or_beta(rho0, k0, h0, l0);
-    (alpha(ode_val_2, &cf_part), beta(ode_val_2, &cf_part))
-}
-
-//jump leverage...http://web.stanford.edu/~duffie/dps.pdf page 10
-//try to depricate
-pub fn generic_leverage_jump(
-    u: &Complex<f64>,
-    cf: &dyn Fn(&Complex<f64>) -> Complex<f64>,
-    t: f64,
-    v0: f64,
-    correlation: f64,
-    expected_value_of_cf: f64,
-    rho0: f64,
-    rho1: f64,
-    k0: f64,
-    k1: f64,
-    h0: f64,
-    h1: f64,
-    l0: f64,
-    l1: f64,
-    num_steps: usize,
-) -> Complex<f64> {
-    let init_value_1 = Complex::new(0.0, 0.0);
-    let init_value_2 = Complex::new(0.0, 0.0);
-    let delta = if l1 > 0.0 && expected_value_of_cf > 0.0 {
-        correlation / (expected_value_of_cf * l1)
-    } else {
-        0.0
-    };
-    let fx = move |_t: f64, _curr_val_1: &Complex<f64>, curr_val_2: &Complex<f64>| {
-        duffie_mgf_increment(
-            &(u + delta * curr_val_2),
-            curr_val_2,
-            rho0,
-            rho1,
-            k0,
-            k1,
-            h0,
-            h1,
-            l0,
-            l1,
-            cf,
-        )
-    };
-    let (alpha, beta) = runge_kutta_complex_vector(&fx, init_value_1, init_value_2, t, num_steps);
-    beta * v0 + alpha
-}
-
-//http://web.stanford.edu/~duffie/dps.pdf page 10
-//https://poseidon01.ssrn.com/delivery.php?ID=737027111000006077113070089110095064016020050037028066000080065074127006086092092026061120060015055036110006010126103066122080108059078076004070004065091125021108014077028121011029092117112080127092065007111098070065099086069122086067104098093017117&EXT=pdf&INDEX=TRUE
-// page 11.
+/// http://web.stanford.edu/~duffie/dps.pdf page 10
+/// https://poseidon01.ssrn.com/delivery.php?ID=737027111000006077113070089110095064016020050037028066000080065074127006086092092026061120060015055036110006010126103066122080108059078076004070004065091125021108014077028121011029092117112080127092065007111098070065099086069122086067104098093017117&EXT=pdf&INDEX=TRUE
+/// page 11.
+/// l1 is incorporated as part of the characteristic function
 pub fn leverage_neutral_generic(
     u: &Complex<f64>,
     cf_jump: &impl Fn(&Complex<f64>) -> Complex<f64>, //includes lambda v(dx)
     cf: &impl Fn(&Complex<f64>) -> Complex<f64>,
-    //expected_value_jump: f64,
     r0: f64, //defined in Duffie et al
     r1: f64,
     k0: f64,
     k1: f64,
-    //h1: f64, //
-    //l1: f64, incorporated in CF
     v0: f64,
     sigma0: f64, //constant multiplying BM part of asset,
     sigma1: f64, //constant multiplying pure jump part of asset
     rho: f64,    //correlation for BM part
     eta0: f64,   //constant multiplying BM part of time-change process, the square of this is h1
     eta1: f64,   //constant multiplying pure jump part of time-change process
-
     t: f64,
     num_steps: usize,
 ) -> Complex<f64> {
@@ -384,8 +302,7 @@ pub fn leverage_neutral_generic(
         let alpha = k0 * beta_prev - r0;
         (alpha, beta)
     };
-    let (alpha, beta) =
-        crate::cir::runge_kutta_complex_vector(&fx, init_value_1, init_value_2, t, num_steps);
+    let (alpha, beta) = runge_kutta_complex_vector(&fx, init_value_1, init_value_2, t, num_steps);
     beta * v0 + alpha
 }
 

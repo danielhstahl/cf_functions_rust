@@ -90,7 +90,7 @@ pub fn alpha_stable_leverage(
 ) -> impl Fn(&Complex<f64>) -> Complex<f64> {
     let phi = compute_stable_phi(alpha);
 
-    let leverage_cf = crate::cir::cir_leverage_jump(
+    let leverage_cf = crate::affine_process::cir_leverage_jump(
         move |u| stable_cf_memoize(u, alpha, mu, BETA_STABLE, c, phi),
         t,
         v0,

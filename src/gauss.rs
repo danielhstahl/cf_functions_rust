@@ -94,7 +94,7 @@ pub fn heston_log_cf(
     rho: f64,
 ) -> Complex<f64> {
     let sigma_sq = sigma.powi(2);
-    crate::cir::generic_leverage_diffusion(
+    crate::affine_process::generic_leverage_diffusion(
         u,
         &|u| gauss_log_cf(u, -0.5 * sigma_sq, sigma),
         t,

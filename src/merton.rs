@@ -93,7 +93,7 @@ pub fn merton_time_change_log_cf(
     eta_v: f64,
     rho: f64,
 ) -> Complex<f64> {
-    crate::cir::generic_leverage_diffusion(
+    crate::affine_process::generic_leverage_diffusion(
         u,
         &|u| merton_log_risk_neutral_cf(u, lambda, mu_l, sig_l, 0.0, sigma),
         t,

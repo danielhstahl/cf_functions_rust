@@ -66,7 +66,7 @@ pub fn gamma_leverage(
     beta: f64,
     num_steps: usize,
 ) -> impl Fn(&Complex<f64>) -> Complex<f64> {
-    let leverage_cf = crate::cir::cir_leverage_jump(
+    let leverage_cf = crate::affine_process::cir_leverage_jump(
         move |u: &Complex<f64>| gamma_cf(u, alpha, beta),
         t,
         v0,
