@@ -1,6 +1,6 @@
 use num_complex::Complex;
+use rayon::iter::IndexedParallelIterator;
 use special::Gamma;
-
 /// Returns log of CGMY characteristic function
 ///
 /// # Remarks
@@ -134,52 +134,6 @@ pub fn cgmy_time_change_log_cf(
         eta_v,
         rho,
     )
-}
-
-//see https://poseidon01.ssrn.com/delivery.php?ID=737027111000006077113070089110095064016020050037028066000080065074127006086092092026061120060015055036110006010126103066122080108059078076004070004065091125021108014077028121011029092117112080127092065007111098070065099086069122086067104098093017117&EXT=pdf&INDEX=TRUE
-// page 11
-// that paper defines khat*(theta-v), I define k*(1-v)+v*E[dJ]*eta_v
-// to make the long run expectation equal to 1.
-//solving, khat=k-E[dJ]*eta_v
-//khat*theta=k
-//so theta=k/khat
-//try to depricate
-fn depreciate_leverage_neutral_pure_jump_log_cf(
-    u: &Complex<f64>,
-    cf_negative: &dyn Fn(&Complex<f64>) -> Complex<f64>, //
-    cf: &dyn Fn(&Complex<f64>) -> Complex<f64>,
-    expected_value_jump: f64, //negative only
-    speed: f64,               //"k"
-    eta_v: f64,
-    sigma: f64,
-    v0: f64,
-    t: f64,
-    num_steps: usize,
-) -> Complex<f64> {
-    let init_value_1 = Complex::new(0.0, 0.0);
-    let init_value_2 = Complex::new(0.0, 0.0);
-    let khat = speed - eta_v * expected_value_jump; //get expectation equal to one
-
-    let theta = if crate::utils::is_same(khat, 0.0) {
-        0.0
-    } else {
-        speed / khat
-    };
-    println!("this is sigma in dlnpjlcf {}", sigma);
-    println!("this is eta_v in dlnpjlcf {}", eta_v);
-    println!("this is khat in dlnpjlcf {}", khat);
-    println!("this is khat*theta in dlnpjlcf {}", khat * theta);
-    //println!("this is h1 in dlnpjlcf {}", h1);
-    let fx = move |_t: f64, _alpha_prev: &Complex<f64>, beta_prev: &Complex<f64>| {
-        let u_sig = sigma * u;
-        let u_extended = beta_prev * Complex::new(0.0, 1.0) * eta_v + u_sig;
-        let beta = cf_negative(&u_extended) - cf_negative(&u_sig) - khat * beta_prev + cf(u);
-        let alpha = khat * theta * beta_prev;
-        (alpha, beta)
-    };
-    let (alpha, beta) =
-        crate::cir::runge_kutta_complex_vector(&fx, init_value_1, init_value_2, t, num_steps);
-    beta * v0 + alpha
 }
 
 fn leverage_neutral_pure_jump_log_cf(
@@ -493,14 +447,15 @@ mod tests {
         let results = fang_oost_option::option_pricing::fang_oost_call_price(
             num_u, asset, &strikes, max_strike, rate, t, &cf_inst,
         );
-        println!("this is results {}", results_se[0]);
+        println!("this is resultsse {}", results_se[0]);
+        println!("this is results {}", results[0]);
         //negative correlation leads to lower call prices
         assert_eq!(results_se[0] < results[0], true);
     }
     #[test]
     fn cgmyse_option_price_expectation() {
-        let sigma = 1.0; //to be able to compare apples to apples
-        let c = 1.0;
+        let sigma = 0.5;
+        let c = 0.3;
         let g = 5.0;
         let m = 5.0;
         let y = 1.5;
@@ -509,21 +464,32 @@ mod tests {
         let eta_v = 0.1;
         let num_u: usize = 256;
         let num_steps: usize = 256;
-        let t = 1.0;
+        let t = 1.2;
         let rate = 0.1;
-        //let asset = 100.0;
-        //let vol = cgmy_diffusion_vol(0.0, c, g, m, y, t);
-        let max_x = 100.0;
+        let max_x = 5.0;
+        let min_x = -5.0;
         let cf_inst_se =
             cgmyse_time_change_cf(t, rate, c, g, m, y, sigma, v0, speed, eta_v, num_steps);
         let discrete_cf = fang_oost::get_discrete_cf(num_u, 0.0, max_x, &cf_inst_se);
-        let expectation = cf_dist_utils::get_expectation_discrete_cf(0.0, max_x, &discrete_cf);
-        assert_abs_diff_eq!(expectation, (rate * t).exp(), epsilon = 0.00001);
+        //let expectation = cf_dist_utils::get_expectation_discrete_cf(0.0, max_x, &discrete_cf);
+        //let density = cf_dist_utils::get_cdf(20, num_u, 0.0, max_x, &cf_inst_se);
+        let num_x = 1024;
+        //let x_domain = fang_oost::get_x_domain(1024, min_x, max_x);
+        let dx = (max_x - min_x) / (num_x - 1.0);
+        let expected_value = cf_dist_utils::get_pdf(num_x, num_u, min_x, max_x, &cf_inst_se)
+            .iter()
+            .map(|fang_oost::GraphElement { x, value }| value * x.exp() * dx)
+            .sum();
+        /*for element in density {
+            println!("this is cdf {}", element);
+        }*/
+        println!("this is expect {}", density);
+        assert_abs_diff_eq!(expected_value, (rate * t).exp(), epsilon = 0.00001);
     }
     #[test]
     fn cgmy_option_price_expectation() {
-        let sigma = 1.0; //to be able to compare apples to apples
-        let c = 1.0;
+        let sigma = 0.2;
+        let c = 0.3;
         let g = 5.0;
         let m = 5.0;
         let y = 1.5;
@@ -531,15 +497,21 @@ mod tests {
         let v0 = 1.0;
         let eta_v = 0.1;
         let num_u: usize = 256;
-        let t = 1.0;
+        let t = 1.2;
         let rate = 0.1;
-        //let asset = 100.0;
-        //let vol = cgmy_diffusion_vol(0.0, c, g, m, y, t);
-        let max_x = 100.0;
-        let cf_inst_se = cgmy_time_change_cf(t, rate, c, g, m, y, sigma, v0, speed, eta_v, -0.3);
-        let discrete_cf = fang_oost::get_discrete_cf(num_u, 0.0, max_x, &cf_inst_se);
-        let expectation = cf_dist_utils::get_expectation_discrete_cf(0.0, max_x, &discrete_cf);
-        assert_abs_diff_eq!(expectation, (rate * t).exp(), epsilon = 0.00001);
+        let max_x = 20.0;
+        let cf_inst =
+            |u: &Complex<f64>| (cgmy_log_risk_neutral_cf(u, c, g, m, y, rate, sigma) * t).exp();
+        //let cf_inst = cgmy_time_change_cf(t, rate, c, g, m, y, sigma, v0, speed, eta_v, -0.3);
+        let discrete_cf = fang_oost::get_discrete_cf(num_u, 0.0, max_x, &cf_inst);
+        let num_x = 1024;
+        let dx = (max_x - min_x) / (num_x - 1.0);
+        let expected_value = cf_dist_utils::get_pdf(num_x, num_u, min_x, max_x, &cf_inst)
+            .iter()
+            .map(|fang_oost::GraphElement { x, value }| value * x.exp() * dx)
+            .sum();
+        //let expectation = cf_dist_utils::get_expectation_discrete_cf(0.0, max_x, &discrete_cf);
+        assert_abs_diff_eq!(expected_value, (rate * t).exp(), epsilon = 0.00001);
     }
     #[test]
     fn cgmy_option_price_test() {

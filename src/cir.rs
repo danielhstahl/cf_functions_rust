@@ -374,12 +374,6 @@ pub fn leverage_neutral_generic(
     let init_value_1 = Complex::new(0.0, 0.0);
     let init_value_2 = Complex::new(0.0, 0.0);
     let h1 = eta0.powi(2);
-    /*println!("this is sigma0 in lng {}", sigma0);
-    println!("this is sigma1 in lng {}", sigma1);
-    println!("this is k0 in lng {}", k0);
-    println!("this is k1 in lng {}", k1);
-    println!("this is h1 in lng {}", h1);
-    println!("this is eta1 in lng {}", eta1);*/
     let fx = move |_t: f64, _alpha_prev: &Complex<f64>, beta_prev: &Complex<f64>| {
         let u_sig = sigma1 * u;
         let u_extended = beta_prev * eta1 + u_sig;
@@ -408,8 +402,7 @@ pub fn leverage_neutral_generic(
 /// to accommodate more complicated jump processes such as CGMY
 /// See equation 8 in my ops risk paper.
 pub fn cir_leverage_jump(
-    u: &Complex<f64>,
-    cf_jump: &impl Fn(&Complex<f64>) -> Complex<f64>, //only jump CF, no poisson "lambda"
+    cf_jump: impl Fn(&Complex<f64>) -> Complex<f64> + Copy, //only jump CF, no poisson "lambda"
     t: f64,
     v0: f64,
     correlation: f64,
@@ -418,47 +411,31 @@ pub fn cir_leverage_jump(
     sigma: f64,
     lambda: f64,
     num_steps: usize,
-) -> Complex<f64> {
+) -> impl Fn(&Complex<f64>) -> Complex<f64> {
     let kappa = 1.0 + correlation / a; //to stay expectation of 1
     let delta = correlation / (lambda * expected_value_of_cf);
-    let full_cf = |u: &Complex<f64>| lambda * (cf_jump(u) - 1.0);
-    let jump_cf_extended = |u: &Complex<f64>| lambda * cf_jump(u);
-    leverage_neutral_generic(
-        u,
-        &jump_cf_extended,
-        &full_cf,
-        0.0,
-        0.0,
-        a,
-        -a * kappa,
-        v0,
-        0.0,
-        1.0,
-        0.0,
-        sigma,
-        delta,
-        t,
-        num_steps,
-    )
-
-    /*
-    generic_leverage_jump(
-        u,
-        cf,
-        t,
-        v0,
-        correlation,
-        expected_value_of_cf,
-        0.0,
-        0.0,
-        a,
-        -a * kappa,
-        0.0,
-        sigma.powi(2),
-        0.0,
-        lambda,
-        num_steps,
-    )*/
+    let cf_jump_cln = cf_jump.clone(); //else cant move into two functions
+    let full_cf = move |u: &Complex<f64>| lambda * (cf_jump(u) - 1.0);
+    let jump_cf_extended = move |u: &Complex<f64>| lambda * cf_jump_cln(u);
+    move |u| {
+        leverage_neutral_generic(
+            u,
+            &jump_cf_extended,
+            &full_cf,
+            0.0,
+            0.0,
+            a,
+            -a * kappa,
+            v0,
+            0.0,
+            1.0,
+            0.0,
+            sigma,
+            delta,
+            t,
+            num_steps,
+        )
+    }
 }
 
 #[cfg(test)]
@@ -500,57 +477,8 @@ mod tests {
         let rho1 = 1.0;
         let k0 = a * b;
         let k1 = -a;
-        let h0 = 0.0;
-        let h1 = sigma * sigma;
-        let l0 = 0.0;
-        let l1 = 0.0;
-        let num_steps: usize = 1024;
-        let cf = |u: &Complex<f64>| u.exp();
-        let correlation = 0.0;
-        let expected_value_of_cf = 1.0; //doesnt matter
-        let u = Complex::new(1.0, 0.0);
-        let result = generic_leverage_jump(
-            &u,
-            &cf,
-            t,
-            r0,
-            correlation,
-            expected_value_of_cf,
-            rho0,
-            rho1,
-            k0,
-            k1,
-            h0,
-            h1,
-            l0,
-            l1,
-            num_steps,
-        );
-        assert_abs_diff_eq!(result.re.exp(), bond_price, epsilon = 0.000001);
-    }
-    #[test]
-    fn duffie_mgf_compare_cir_new() {
-        let sigma = 0.3;
-        let a = 0.3;
-        let b = 0.05;
-        let r0 = 0.05;
-        let h = (a * a + 2.0 * sigma * sigma as f64).sqrt();
-        let t = 0.25;
-        let a_num = 2.0 * h * ((a + h) * t * 0.5).exp();
-        let a_den = 2.0 * h + (a + h) * ((t * h).exp() - 1.0);
-        let a_t_tm = (a_num / a_den).powf(2.0 * a * b / (sigma * sigma));
-        let b_num = 2.0 * ((t * h).exp() - 1.0);
-        let b_den = a_den;
-        let b_t_tm = b_num / b_den;
-        let bond_price = a_t_tm * ((-r0 * b_t_tm).exp());
-        let rho0 = 0.0;
-        let rho1 = 1.0;
-        let k0 = a * b;
-        let k1 = -a;
         let num_steps: usize = 1024;
         let cf = |_u: &Complex<f64>| Complex::new(0.0, 0.0);
-        //let correlation = 0.0;
-        //let expected_value_of_cf = 1.0; //doesnt matter
         let u = Complex::new(1.0, 0.0);
         let result = leverage_neutral_generic(
             &u, &cf, &cf, rho0, rho1, k0, k1, r0, 0.0, 0.0, 0.0, sigma, 0.0, t, num_steps,
@@ -604,104 +532,6 @@ mod tests {
         let cf_heston = (-b_t * v0 - c_t).exp().re;
         let approx_heston_cf = cir_mgf_cmp(&neg_psi, k, &k_star, sig, t, v0).re;
         assert_eq!(cf_heston, approx_heston_cf);
-    }
-
-    #[test]
-    fn new_cf_adjust_compare() {
-        let u = Complex::new(0.5, 0.5);
-        let example_lambda = 0.5; //for jump distribution
-        let lambda = 0.6; //lambda for poisson
-        let cfjump = |u: &Complex<f64>| lambda * (example_lambda / (example_lambda - u));
-        let beta_prev = Complex::new(0.2, -0.3);
-        let eta1 = 0.3;
-        let cf = |u: &Complex<f64>| cfjump(u) - lambda;
-        let new_result = cfjump(&(u + beta_prev * eta1)) - cfjump(&u) + cf(&u);
-        let old_result = cf(&(u + beta_prev * eta1));
-        assert_eq!(new_result, old_result);
-    }
-    #[test]
-    fn leverage_jump() {
-        let u = Complex::new(0.5, 0.5);
-        let example_lambda = 0.5; //for jump distribution
-        let lambda = 0.6; //lambda for poisson
-        let cfjump = |u: &Complex<f64>| example_lambda / (example_lambda - u);
-        let t = 0.5;
-        let v0 = 1.2;
-        let correlation = 0.5;
-        let expected_value_of_cf = 1.0 / example_lambda;
-        let a = 0.4;
-        let sigma = 0.3;
-        let num_steps: usize = 256;
-        //to stay expectation of 1
-        //let delta = correlation / (lambda * expected_value_of_cf);
-        /*let cf_old = |u: &Complex<f64>| cfjump(u) - 1.0;
-        let cf_new = |u: &Complex<f64>| lambda * cf_old(u);
-        let cf_jump_new = |u: &Complex<f64>| lambda * cfjump(u);*/
-
-        let result = cir_leverage_jump(
-            &u,
-            &cfjump,
-            t,
-            v0,
-            correlation,
-            expected_value_of_cf,
-            a,
-            sigma,
-            lambda,
-            num_steps,
-        );
-        /*
-        let result = leverage_neutral_generic(
-            &u,
-            &cf_jump_new,
-            &cf_new,
-            0.0,
-            0.0,
-            a,
-            -a * kappa,
-            v0,
-            0.0,
-            1.0,
-            0.0,
-            sigma,
-            delta,
-            t,
-            num_steps,
-        );*/
-        /*
-        let result = cir_leverage_jump(
-            &u,
-            &cf,
-            t,
-            v0,
-            correlation,
-            expected_value_of_cf,
-            a,
-            sigma,
-            lambda,
-            num_steps,
-        );*/
-
-        // let cf1 = |u| example_lambda / (example_lambda - u);
-        let kappa = 1.0 + correlation / a;
-        let resultprev = generic_leverage_jump(
-            &u,
-            &cfjump,
-            t,
-            v0,
-            correlation,
-            expected_value_of_cf,
-            0.0,
-            0.0,
-            a,
-            -a * kappa,
-            0.0,
-            sigma.powi(2),
-            0.0,
-            lambda,
-            num_steps,
-        );
-        assert_eq!(result, resultprev);
     }
     #[test]
     fn test_heston_full_generic() {

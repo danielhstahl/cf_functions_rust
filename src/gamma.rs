@@ -19,34 +19,6 @@ use num_complex::Complex;
 pub fn gamma_cf(u: &Complex<f64>, a: f64, b: f64) -> Complex<f64> {
     (1.0 - u * b).powf(-a)
 }
-
-//for gamma distribution
-fn gamma_log(
-    u: &Complex<f64>,
-    t: f64,
-    v0: f64,
-    a: f64,
-    sigma: f64,
-    lambda: f64,
-    correlation: f64,
-    alpha: f64,
-    beta: f64,
-    num_steps: usize,
-) -> Complex<f64> {
-    crate::cir::cir_leverage_jump(
-        u,
-        &|u| gamma_cf(u, alpha, beta),
-        t,
-        v0,
-        correlation,
-        alpha * beta,
-        a,
-        sigma,
-        lambda,
-        num_steps,
-    )
-}
-
 /// Returns log CF of an gamma jump diffusion when transformed by an affine process
 /// and the process is correlated with the jump component of the Levy process.
 ///
@@ -94,21 +66,18 @@ pub fn gamma_leverage(
     beta: f64,
     num_steps: usize,
 ) -> impl Fn(&Complex<f64>) -> Complex<f64> {
-    move |u| {
-        gamma_log(
-            u,
-            t,
-            v0,
-            a,
-            sigma,
-            lambda,
-            correlation,
-            alpha,
-            beta,
-            num_steps,
-        )
-        .exp()
-    }
+    let leverage_cf = crate::cir::cir_leverage_jump(
+        move |u: &Complex<f64>| gamma_cf(u, alpha, beta),
+        t,
+        v0,
+        correlation,
+        alpha * beta,
+        a,
+        sigma,
+        lambda,
+        num_steps,
+    );
+    move |u: &Complex<f64>| leverage_cf(&u).exp()
 }
 
 #[cfg(test)]
