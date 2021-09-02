@@ -148,7 +148,6 @@ fn leverage_neutral_pure_jump_log_cf(
     num_steps: usize,
 ) -> Complex<f64> {
     let khat = speed - eta_v * expected_value_jump; //get expectation equal to one
-
     let theta = if crate::utils::is_same(khat, 0.0) {
         0.0
     } else {
@@ -219,7 +218,7 @@ pub fn cgmyse_time_change_cf(
     eta_v: f64,
     num_steps: usize,
 ) -> impl Fn(&Complex<f64>) -> Complex<f64> {
-    let expected_value_jump = cgmy_expectation(c, 0.0, m, y) * eta_v;
+    let expected_value_jump = cgmy_expectation_lower_side(c, m, y) * eta_v;
     move |u: &Complex<f64>| {
         (leverage_neutral_pure_jump_log_cf(
             &u,
@@ -298,6 +297,15 @@ pub fn cgmy_expectation(c: f64, g: f64, m: f64, y: f64) -> f64 {
         c * (1.0 - y).gamma() * (m.powf(y - 1.0) - g.powf(y - 1.0))
     }
 }
+pub fn cgmy_expectation_lower_side(c: f64, m: f64, y: f64) -> f64 {
+    if crate::utils::is_same(y, 1.0) {
+        0.0
+    } else if crate::utils::is_same(y, 0.0) {
+        0.0
+    } else {
+        c * (1.0 - y).gamma() * m.powf(y - 1.0)
+    }
+}
 
 /// Returns volatility of CGMY
 pub fn cgmy_diffusion_vol(sigma: f64, c: f64, g: f64, m: f64, y: f64, maturity: f64) -> f64 {
@@ -330,13 +338,28 @@ mod tests {
         assert_abs_diff_eq!(expectation, approx_expectation, epsilon = 0.00001);
     }
     #[test]
+    fn cgmy_expectation_test_y_less_than_1() {
+        let num_steps = 1024;
+        let x_min = -10.0;
+        let x_max = 10.0;
+        let c = 0.5;
+        let m = 2.0;
+        let g = 3.0; //g is larger than m, so distribution is right skewed; expectation is positive
+        let y = 0.5;
+        let cf = |u: &Complex<f64>| cgmy_log_cf(&u, c, g, m, y).exp();
+        let discrete_cf = fang_oost::get_discrete_cf(num_steps, x_min, x_max, &cf);
+        let approx_expectation = //0.2824205454935122
+            cf_dist_utils::get_expectation_discrete_cf(x_min, x_max, &discrete_cf);
+        let expectation = cgmy_expectation(c, g, m, y); //
+        assert_abs_diff_eq!(expectation, approx_expectation, epsilon = 0.00001);
+    }
+    #[test]
     fn cgmy_partial_expectation_test() {
         let num_steps = 1024;
         let x_min = -10.0;
         let x_max = 10.0;
         let c = 0.5;
         let m = 2.0;
-        let g = 0.0;
         let y = 1.2;
         let cf = |u: &Complex<f64>| cgmy_log_cf_lower_side(&u, c, m, y).exp();
         let discrete_cf = fang_oost::get_discrete_cf(num_steps, x_min, x_max, &cf);
@@ -344,7 +367,25 @@ mod tests {
         let approx_expectation =
             cf_dist_utils::get_expectation_discrete_cf(x_min, x_max, &discrete_cf);
 
-        let expectation = cgmy_expectation(c, g, m, y);
+        let expectation = cgmy_expectation_lower_side(c, m, y);
+        assert_abs_diff_eq!(expectation, approx_expectation, epsilon = 0.00001);
+    }
+    #[test]
+    fn cgmy_partial_expectation_test_y_less_than_1() {
+        let num_steps = 1024;
+        let x_min = -10.0;
+        let x_max = 10.0;
+        let c = 0.5;
+        let m = 2.0;
+
+        let y = 0.5;
+        let cf = |u: &Complex<f64>| cgmy_log_cf_lower_side(&u, c, m, y).exp();
+        let discrete_cf = fang_oost::get_discrete_cf(num_steps, x_min, x_max, &cf);
+
+        let approx_expectation =
+            cf_dist_utils::get_expectation_discrete_cf(x_min, x_max, &discrete_cf);
+
+        let expectation = cgmy_expectation_lower_side(c, m, y);
         assert_abs_diff_eq!(expectation, approx_expectation, epsilon = 0.00001);
     }
     //these tests are to demonstrate, on an easy distribution,
@@ -386,6 +427,41 @@ mod tests {
         let g = 5.0;
         let m = 5.0;
         let y = 1.5;
+        let speed = 0.0;
+        let v0 = 1.0;
+        let eta_v = 0.0;
+        let strikes = vec![100.0];
+        let num_u: usize = 256;
+        let num_steps: usize = 256;
+        let t = 1.0;
+        let rate = 0.1;
+        let asset = 100.0;
+        let vol = cgmy_diffusion_vol(0.0, c, g, m, y, t);
+        let max_strike = (10.0 * vol).exp() * asset;
+        let cf_inst_se =
+            cgmyse_time_change_cf(t, rate, c, g, m, y, sigma, v0, speed, eta_v, num_steps);
+        let cf_inst = cgmy_time_change_cf(t, rate, c, g, m, y, 0.0, v0, 0.0, 0.0, 0.0);
+        let results_se = fang_oost_option::option_pricing::fang_oost_call_price(
+            num_u,
+            asset,
+            &strikes,
+            max_strike,
+            rate,
+            t,
+            &cf_inst_se,
+        );
+        let results = fang_oost_option::option_pricing::fang_oost_call_price(
+            num_u, asset, &strikes, max_strike, rate, t, &cf_inst,
+        );
+        assert_abs_diff_eq!(results_se[0], results[0], epsilon = 0.00001);
+    }
+    #[test]
+    fn cgmyse_option_price_test_special_case_y_less_than_1() {
+        let sigma = 1.0; //to be able to compare apples to apples
+        let c = 1.0;
+        let g = 5.0;
+        let m = 5.0;
+        let y = 0.5;
         let speed = 0.0;
         let v0 = 1.0;
         let eta_v = 0.0;
@@ -482,6 +558,31 @@ mod tests {
         let g = 5.0;
         let m = 5.0;
         let y = 1.5;
+        let speed = 0.3;
+        let v0 = 0.9;
+        let eta_v = 0.1;
+        let num_u: usize = 256;
+        let num_steps: usize = 256;
+        let t = 1.2;
+        let rate = 0.1;
+        let max_x = 5.0;
+        let min_x = -5.0;
+        let cf_inst_se =
+            cgmyse_time_change_cf(t, rate, c, g, m, y, sigma, v0, speed, eta_v, num_steps);
+        let num_x = 1024;
+        let dx = (max_x - min_x) / (num_x as f64 - 1.0);
+        let expected_value = cf_dist_utils::get_pdf(num_x, num_u, min_x, max_x, &cf_inst_se)
+            .map(|fang_oost::GraphElement { x, value }| value * x.exp() * dx)
+            .sum();
+        assert_abs_diff_eq!(expected_value, (rate * t).exp(), epsilon = 0.00001);
+    }
+    #[test]
+    fn cgmyse_option_price_expectation_v0_not_1_y_less_than_1() {
+        let sigma = 0.5;
+        let c = 0.3;
+        let g = 5.0;
+        let m = 5.0;
+        let y = 0.5;
         let speed = 0.3;
         let v0 = 0.9;
         let eta_v = 0.1;

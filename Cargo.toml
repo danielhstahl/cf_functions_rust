@@ -7,7 +7,7 @@ license = "MIT"
 name = "cf_functions"
 readme = "README.md"
 repository = "https://github.com/danielhstahl/cf_functions_rust"
-version = "0.15.0"
+version = "0.15.1"
 [dependencies]
 num-complex = "0.2"
 special = "0.7"
