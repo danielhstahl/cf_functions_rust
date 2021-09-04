@@ -62,9 +62,10 @@ fn cgmy_log_cf_lower_side(u: &Complex<f64>, c: f64, m: f64, y: f64) -> Complex<f
 /// let m = 3.0;
 /// let y = 0.6;
 /// let rate = 0.05; //risk free rate
-/// let sigma = 0.3; //volatility of diffusion
+/// let sigma_1 = 0.3; //volatility of diffusion
+/// let sigma_2= 1.0; //constant multiplying CGMY
 /// let log_cf = cf_functions::cgmy::cgmy_log_risk_neutral_cf(
-///     &u, c, g, m, y, rate, sigma
+///     &u, c, g, m, y, rate, sigma_1, sigma_2
 /// );
 /// # }
 /// ```
@@ -75,10 +76,12 @@ pub fn cgmy_log_risk_neutral_cf(
     m: f64,
     y: f64,
     rate: f64,
-    sigma: f64,
+    sigma_1: f64, //diffusion
+    sigma_2: f64, //constant multiplying CGMY, typically 1.0
 ) -> Complex<f64> {
-    let cmp_mu = rate - sigma.powi(2) * 0.5 - cgmy_log_cf(&Complex::new(1.0, 0.0), c, g, m, y);
-    crate::gauss::gauss_log_cf_cmp(u, &cmp_mu, sigma) + cgmy_log_cf(u, c, g, m, y)
+    let cmp_mu =
+        rate - sigma_1.powi(2) * 0.5 - cgmy_log_cf(&Complex::new(sigma_2, 0.0), c, g, m, y);
+    crate::gauss::gauss_log_cf_cmp(u, &cmp_mu, sigma_1) + cgmy_log_cf(&(u * sigma_2), c, g, m, y)
 }
 
 /// Returns log of time changed CGMY characteristic function with correlation between the diffusion of the time changed process and the underlying.
@@ -125,7 +128,7 @@ pub fn cgmy_time_change_log_cf(
 ) -> Complex<f64> {
     crate::affine_process::generic_leverage_diffusion(
         u,
-        &|u| cgmy_log_risk_neutral_cf(u, c, g, m, y, 0.0, sigma),
+        &|u| cgmy_log_risk_neutral_cf(u, c, g, m, y, 0.0, sigma, 1.0),
         t,
         sigma,
         v0,
@@ -223,7 +226,7 @@ pub fn cgmyse_time_change_cf(
         (leverage_neutral_pure_jump_log_cf(
             &u,
             &|u| cgmy_log_cf_lower_side(&u, c, m, y),
-            &|u| cgmy_log_risk_neutral_cf(&u, c, g, m, y, 0.0, 0.0),
+            &|u| cgmy_log_risk_neutral_cf(&u, c, g, m, y, 0.0, 0.0, sigma),
             expected_value_jump,
             speed,
             eta_v,
@@ -586,8 +589,8 @@ mod tests {
         let speed = 0.3;
         let v0 = 0.9;
         let eta_v = 0.1;
-        let num_u: usize = 256;
-        let num_steps: usize = 256;
+        let num_u: usize = 1024;
+        let num_steps: usize = 1024;
         let t = 1.2;
         let rate = 0.1;
         let max_x = 5.0;
