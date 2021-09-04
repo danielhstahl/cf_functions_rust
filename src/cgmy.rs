@@ -581,7 +581,7 @@ mod tests {
         let sigma = 0.5;
         let c = 0.3;
         let g = 5.0;
-        let m = 5.0;
+        let m = 3.0;
         let y = 0.5;
         let speed = 0.3;
         let v0 = 0.9;
