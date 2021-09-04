@@ -235,7 +235,7 @@ pub fn generic_leverage_diffusion(
 /// # }
 /// ```
 pub fn runge_kutta_complex_vector(
-    fx: &dyn Fn(f64, &Complex<f64>, &Complex<f64>) -> (Complex<f64>, Complex<f64>),
+    fx: &impl Fn(f64, &Complex<f64>, &Complex<f64>) -> (Complex<f64>, Complex<f64>),
     mut init_value_1: Complex<f64>,
     mut init_value_2: Complex<f64>,
     t: f64,

@@ -137,8 +137,8 @@ pub fn cgmy_time_change_log_cf(
 
 fn leverage_neutral_pure_jump_log_cf(
     u: &Complex<f64>,
-    cf_negative: &dyn Fn(&Complex<f64>) -> Complex<f64>, //
-    cf: &dyn Fn(&Complex<f64>) -> Complex<f64>,
+    cf_negative: &impl Fn(&Complex<f64>) -> Complex<f64>, //
+    cf: &impl Fn(&Complex<f64>) -> Complex<f64>,
     expected_value_jump: f64, //negative only
     speed: f64,               //"k"
     eta_v: f64,
