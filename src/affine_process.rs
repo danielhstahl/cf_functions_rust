@@ -269,8 +269,7 @@ pub fn runge_kutta_complex_vector(
 }
 
 /// http://web.stanford.edu/~duffie/dps.pdf page 10
-/// https://poseidon01.ssrn.com/delivery.php?ID=737027111000006077113070089110095064016020050037028066000080065074127006086092092026061120060015055036110006010126103066122080108059078076004070004065091125021108014077028121011029092117112080127092065007111098070065099086069122086067104098093017117&EXT=pdf&INDEX=TRUE
-/// page 11.
+/// https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2980349
 /// l1 is incorporated as part of the characteristic function
 pub fn leverage_neutral_generic(
     u: &Complex<f64>,
@@ -296,7 +295,9 @@ pub fn leverage_neutral_generic(
         let u_sig = sigma1 * u;
         let u_extended = beta_prev * eta1 + u_sig;
         let k_extended = k1 + u * eta0 * rho * sigma0; //note that k1 is typically negative
-        let beta = cf_jump(&u_extended) - cf_jump(&u_sig) + k_extended * beta_prev - r1
+        let beta = cf_jump(&u_extended) - cf_jump(&u_sig) //this part is the "Escher transform" part of the leverage neutral measure, see https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2980349
+         + k_extended * beta_prev
+            - r1
             + cf(u)
             + beta_prev * beta_prev * h1 * 0.5;
         let alpha = k0 * beta_prev - r0;
@@ -307,7 +308,7 @@ pub fn leverage_neutral_generic(
 }
 
 /// From page 8 and 9 of my ops risk paper
-/// https://github.com/danielhstahl/OpsRiskPaper/releases/download/0.2.0/main.pdf
+/// https://github.com/danielhstahl/OpsRiskPaper/releases/download/0.3.2/main.pdf
 /// The expectation is E[e^{lambda*(E[e^uiL]-1)\int v_s ds}]
 /// Using the duffie ODE formula, rho0=0, rho1=lambda*(1-E[e^uiL]),
 /// k0=a, k1=-a*kappahat (where kappahat=1+correlation/a
