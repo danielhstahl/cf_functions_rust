@@ -295,6 +295,8 @@ pub fn leverage_neutral_generic(
         let u_sig = sigma1 * u;
         let u_extended = beta_prev * eta1 + u_sig;
         let k_extended = k1 + u * eta0 * rho * sigma0; //note that k1 is typically negative
+
+        // when doing the "ops risk" type work, the -cf_jump(u_sig) and the first part of cf(u) cancel out, leaving cf_jump(u_extended)-lambda as it should
         let beta = cf_jump(&u_extended) - cf_jump(&u_sig) //this part is the "Escher transform" part of the leverage neutral measure, see https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2980349
          + k_extended * beta_prev
             - r1
